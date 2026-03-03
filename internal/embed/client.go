@@ -124,3 +124,13 @@ func (c *Client) ValidateDimensions() error {
 
 	return nil
 }
+
+// Model returns the configured embedding model
+func (c *Client) Model() string {
+	return c.cfg.EmbedModel
+}
+
+// Dimensions returns the configured embedding dimensions
+func (c *Client) Dimensions() int {
+	return c.cfg.EmbedDimensions
+}

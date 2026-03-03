@@ -1,0 +1,68 @@
+package memory
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/pgvector/pgvector-go"
+)
+
+// Memory represents a stored memory
+type Memory struct {
+	ID        uuid.UUID              `db:"id" json:"id"`
+	Namespace string                 `db:"namespace" json:"namespace"`
+	Content   string                 `db:"content" json:"content"`
+	Embedding pgvector.Vector        `db:"embedding" json:"-"`
+	Metadata  map[string]interface{} `db:"metadata" json:"metadata"`
+	CreatedAt time.Time              `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time              `db:"updated_at" json:"updated_at"`
+}
+
+// RecallResult represents a memory retrieved by search
+type RecallResult struct {
+	Memory
+	Score float64 `json:"score"`
+}
+
+// Filter represents filters for memory queries
+type Filter struct {
+	Since  *time.Time
+	Until  *time.Time
+	Tags   []string
+	Source string
+}
+
+// RecallParams represents parameters for recall operation
+type RecallParams struct {
+	Query      string
+	Namespaces []string
+	TopK       int
+	Threshold  float64
+	Filter     Filter
+}
+
+// ListParams represents parameters for list operation
+type ListParams struct {
+	Namespace string
+	Limit     int
+	Offset    int
+	Order     string
+}
+
+// ForgetFilter represents filters for forget operation
+type ForgetFilter struct {
+	Before *time.Time
+	Tags   []string
+}
+
+// Stats represents memory statistics
+type Stats struct {
+	TotalMemories   int64            `json:"total_memories"`
+	ByNamespace     map[string]int64 `json:"by_namespace"`
+	Recent24h       int64            `json:"recent_24h"`
+	OldestMemory    *time.Time       `json:"oldest_memory,omitempty"`
+	NewestMemory    *time.Time       `json:"newest_memory,omitempty"`
+	TopTags         []string         `json:"top_tags"`
+	EmbeddingModel  string           `json:"embedding_model"`
+	EmbedDimensions int              `json:"embed_dimensions"`
+}
