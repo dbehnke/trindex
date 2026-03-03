@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: trindex
+      POSTGRES_PASSWORD: trindex
+      POSTGRES_DB: trindex
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trindex"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  trindex:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://trindex:trindex@postgres:5432/trindex?sslmode=disable
+      EMBED_BASE_URL: ${EMBED_BASE_URL:-http://host.docker.internal:11434/v1}
+      EMBED_MODEL: ${EMBED_MODEL:-nomic-embed-text}
+      EMBED_API_KEY: ${EMBED_API_KEY:-ollama}
+      EMBED_DIMENSIONS: ${EMBED_DIMENSIONS:-1536}
+      TRANSPORT: stdio
+    stdin_open: true
+    tty: true
+
+volumes:
+  pgdata:
