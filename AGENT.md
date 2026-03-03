@@ -466,28 +466,28 @@ go test ./...
 
 ## Implementation Phases
 
-### Phase 1 — Core (current)
+### Phase 1 — Core ✅ COMPLETED
 
 #### 1.1 Foundation — Project Scaffold
-- [ ] **1.1.1** Create Go module (`go mod init`) with project structure
+- [x] **1.1.1** Create Go module (`go mod init`) with project structure
   - `cmd/trindex/main.go` entry point
   - `internal/` packages: config, db, embed, memory, mcp
   - `.gitignore` for Go projects
-- [ ] **1.1.2** Create `Dockerfile` with multi-stage build
-- [ ] **1.1.3** Create `docker-compose.yml` with Postgres + pgvector service
-- [ ] **1.1.4** Create `.env.example` with all documented environment variables
-- [ ] **1.1.5** Basic `README.md` with quickstart (can be expanded later)
+- [x] **1.1.2** Create `Dockerfile` with multi-stage build
+- [x] **1.1.3** Create `docker-compose.yml` with Postgres + pgvector service
+- [x] **1.1.4** Create `.env.example` with all documented environment variables
+- [x] **1.1.5** Basic `README.md` with quickstart (can be expanded later)
 
 #### 1.2 Infrastructure — Config & Database
-- [ ] **1.2.1** Implement `internal/config/config.go` — env-based config with defaults
+- [x] **1.2.1** Implement `internal/config/config.go` — env-based config with defaults
   - All env vars from Environment Configuration section
   - Validation (required fields, numeric ranges)
   - Sensible defaults for all optional values
-- [ ] **1.2.2** Implement `internal/db/db.go` — Postgres connection pool
+- [x] **1.2.2** Implement `internal/db/db.go` — Postgres connection pool
   - `pgx/v5` connection pool setup
   - Connection health check on startup
   - Graceful shutdown
-- [ ] **1.2.3** Implement `internal/db/migrate.go` — automatic schema migrations
+- [x] **1.2.3** Implement `internal/db/migrate.go` — automatic schema migrations
   - Run migrations on startup
   - Create extensions (vector, pg_trgm)
   - Create `memories` table with all columns
@@ -496,52 +496,52 @@ go test ./...
 - [ ] **1.2.4** Add database tests — connection and migration verification
 
 #### 1.3 Core Service — Embeddings Client
-- [ ] **1.3.1** Implement `internal/embed/client.go` — OpenAI-compatible HTTP client
+- [x] **1.3.1** Implement `internal/embed/client.go` — OpenAI-compatible HTTP client
   - `Embed(text string) ([]float32, error)` method
   - Configurable base URL, model, API key
   - Request/response structs for OpenAI API
   - Error handling with structured errors
 - [ ] **1.3.2** Add embed client tests with mock server
-- [ ] **1.3.3** Validate embedding dimensions on startup
+- [x] **1.3.3** Validate embedding dimensions on startup
   - Query endpoint with test text
   - Compare returned dimensions to `EMBED_DIMENSIONS`
   - Fail fast with clear error if mismatch
 
 #### 1.4 Memory Layer — Store & Recall
-- [ ] **1.4.1** Define memory models in `internal/memory/models.go`
+- [x] **1.4.1** Define memory models in `internal/memory/models.go`
   - `Memory` struct with all fields
   - `RecallResult` struct with score
   - `Filter` struct for metadata filtering
-- [ ] **1.4.2** Implement `internal/memory/store.go` — basic CRUD operations
+- [x] **1.4.2** Implement `internal/memory/store.go` — basic CRUD operations
   - `Create(ctx, content, namespace, metadata) (*Memory, error)`
   - `DeleteByID(ctx, id) error`
   - `DeleteByNamespace(ctx, namespace, filter) (int, error)`
   - `List(ctx, namespace, limit, offset, order) ([]Memory, error)`
-- [ ] **1.4.3** Implement `internal/memory/recall.go` — hybrid search
+- [x] **1.4.3** Implement `internal/memory/recall.go` — hybrid search
   - `Recall(ctx, query, namespaces, topK, threshold, filter) ([]RecallResult, error)`
   - Parallel vector search goroutine (cosine similarity via pgvector)
   - Parallel FTS search goroutine (tsvector)
   - RRF fusion with k=60
   - Metadata filtering (JSONB queries)
   - Always include `global` namespace
-- [ ] **1.4.4** Implement `internal/memory/stats.go` — statistics queries
+- [x] **1.4.4** Implement `internal/memory/stats.go` — statistics queries
   - `Stats(ctx, namespace) (*Stats, error)`
   - Total count, by namespace, recent 24h, top tags
 - [ ] **1.4.5** Add memory layer tests
 
 #### 1.5 MCP Layer — Server & Tools
-- [ ] **1.5.1** Implement `internal/mcp/server.go` — MCP server setup
+- [x] **1.5.1** Implement `internal/mcp/server.go` — MCP server setup
   - Initialize official MCP Go SDK server
   - stdio transport only
   - Register all 5 tools
   - Graceful shutdown handling
-- [ ] **1.5.2** Implement `internal/mcp/tools.go` — tool handlers
+- [x] **1.5.2** Implement `internal/mcp/tools.go` — tool handlers
   - `remember` tool handler
   - `recall` tool handler
   - `forget` tool handler
   - `list` tool handler
   - `stats` tool handler
-- [ ] **1.5.3** Wire up `cmd/trindex/main.go`
+- [x] **1.5.3** Wire up `cmd/trindex/main.go`
   - Load config
   - Initialize DB connection
   - Run migrations
@@ -551,14 +551,14 @@ go test ./...
 - [ ] **1.5.4** Add end-to-end MCP tests (stdio transport)
 
 #### 1.6 Polish — Documentation & Tooling
-- [ ] **1.6.1** Expand `README.md` with full setup guide
+- [x] **1.6.1** Expand `README.md` with full setup guide
   - Installation (binary, Docker, source)
   - Configuration reference
   - Embedding endpoint setup (Ollama, etc.)
   - MCP config examples for opencode
   - MCP config examples for Claude Code
   - Troubleshooting section
-- [ ] **1.6.2** Create `Makefile` with common tasks
+- [x] **1.6.2** Create `Makefile` with common tasks
   - `make build`, `make test`, `make run`
   - `make docker-build`, `make docker-up`
   - `make lint`, `make fmt`
@@ -573,7 +573,7 @@ go test ./...
   - Call `recall` tool
   - Verify results
 
-### Phase 2 — HTTP/SSE + Web UI
+### Phase 2 — HTTP/SSE + Web UI (current)
 
 #### 2.1 HTTP/SSE Transport
 - [ ] **2.1.1** Implement transport abstraction layer
