@@ -24,6 +24,14 @@ jobs:
         with:
           version: 3.x
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Build web UI
+        run: task web:build
+
       - name: Run integration tests
         run: task test:integration:ci
         env:
