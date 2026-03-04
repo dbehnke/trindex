@@ -19,15 +19,13 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      - name: Install go-task
-        uses: arduino/setup-task@v2
-        with:
-          version: 3.x
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+
+      - name: Install go-task
+        run: npm install -g @go-task/cli
 
       - name: Build web UI
         run: task web:build
