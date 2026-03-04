@@ -60,11 +60,21 @@ func (p *PostgresContainer) Terminate(ctx context.Context) error {
 }
 
 // SkipIfNoDocker skips the test if Docker is not available.
+// On macOS, it automatically configures Colima environment variables if needed.
 func SkipIfNoDocker(t *testing.T) {
 	t.Helper()
 
 	if IsCI() {
 		return
+	}
+
+	// On macOS, configure Colima environment if DOCKER_HOST is not set
+	if runtime.GOOS == "darwin" && os.Getenv("DOCKER_HOST") == "" {
+		colimaSocket := "unix://" + os.Getenv("HOME") + "/.colima/default/docker.sock"
+		if _, err := os.Stat(colimaSocket[7:]); err == nil {
+			_ = os.Setenv("DOCKER_HOST", colimaSocket)
+			_ = os.Setenv("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE", "/var/run/docker.sock")
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -8,56 +8,79 @@ import (
 	"github.com/dbehnke/trindex/internal/config"
 	"github.com/dbehnke/trindex/internal/db"
 	"github.com/dbehnke/trindex/internal/embed"
+	"github.com/dbehnke/trindex/internal/testutil"
 	"github.com/google/uuid"
 )
 
-func setupTestStore(t *testing.T) (*Store, *db.DB, func()) {
+func setupTestStore(t *testing.T) (*Store, func()) {
+	t.Helper()
+
+	testutil.SkipIfNoDocker(t)
+
+	ctx := context.Background()
+
+	container, err := testutil.NewPostgresContainer(ctx)
+	if err != nil {
+		t.Fatalf("Failed to start postgres container: %v", err)
+	}
+
+	embeddingDim := 768
 	cfg := &config.Config{
-		DatabaseURL:                "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
-		EmbedBaseURL:               "http://localhost:11434/v1",
-		EmbedModel:                 "nomic-embed-text",
-		EmbedAPIKey:                "ollama",
-		EmbedDimensions:            768,
-		HNSWM:                      16,
-		HNSWEfConstruction:         64,
-		HNSWEfSearch:               40,
-		DefaultNamespace:           "default",
-		DefaultTopK:                10,
-		DefaultSimilarityThreshold: 0.7,
-		DBMaxConns:                 10,
-		DBMinConns:                 2,
-		DBMaxConnLifetime:          60,
-		DBMaxConnIdleTime:          30,
+		DatabaseURL:        container.ConnStr,
+		EmbedDimensions:    embeddingDim,
+		HNSWM:              16,
+		HNSWEfConstruction: 64,
+		HNSWEfSearch:       40,
+		DBMaxConns:         10,
+		DBMinConns:         2,
+		DBMaxConnLifetime:  60,
+		DBMaxConnIdleTime:  30,
+		DefaultNamespace:   "default",
 	}
 
 	database, err := db.New(cfg)
 	if err != nil {
-		t.Skipf("Database not available: %v", err)
-		return nil, nil, func() {}
+		_ = container.Terminate(ctx)
+		t.Fatalf("Failed to create database: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	err = database.Migrate(ctx)
-	if err != nil {
+	if err := database.Migrate(ctx); err != nil {
 		database.Close()
-		t.Skipf("Migration failed: %v", err)
-		return nil, nil, func() {}
+		_ = container.Terminate(ctx)
+		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	embedClient := embed.NewClient(cfg)
-	store := NewStore(database, embedClient, cfg)
+	mockServer := testutil.MockOllamaServer(embeddingDim)
+
+	embedCfg := &config.Config{
+		EmbedBaseURL:               mockServer.URL,
+		EmbedModel:                 "test-model",
+		EmbedAPIKey:                "test-key",
+		EmbedDimensions:            embeddingDim,
+		DefaultTopK:                10,
+		DefaultSimilarityThreshold: 0.7,
+		HNSWM:                      16,
+		HNSWEfConstruction:         64,
+		HNSWEfSearch:               40,
+		DefaultNamespace:           "default",
+		HybridVectorWeight:         0.7,
+		HybridFTSWeight:            0.3,
+	}
+
+	embedClient := embed.NewClient(embedCfg)
+	store := NewStore(database, embedClient, embedCfg)
 
 	cleanup := func() {
+		mockServer.Close()
 		database.Close()
+		_ = container.Terminate(ctx)
 	}
 
-	return store, database, cleanup
+	return store, cleanup
 }
 
 func TestStore_Create(t *testing.T) {
-	store, _, cleanup := setupTestStore(t)
+	store, cleanup := setupTestStore(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -67,8 +90,7 @@ func TestStore_Create(t *testing.T) {
 		"tags": []string{"test", "memory"},
 	})
 	if err != nil {
-		t.Skipf("Embedding service not available: %v", err)
-		return
+		t.Fatalf("Failed to create memory: %v", err)
 	}
 
 	if memory.ID.String() == "" {
@@ -86,7 +108,7 @@ func TestStore_Create(t *testing.T) {
 }
 
 func TestStore_Create_DefaultNamespace(t *testing.T) {
-	store, _, cleanup := setupTestStore(t)
+	store, cleanup := setupTestStore(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -94,8 +116,7 @@ func TestStore_Create_DefaultNamespace(t *testing.T) {
 
 	memory, err := store.Create(ctx, "Test content", "", nil)
 	if err != nil {
-		t.Skipf("Embedding service not available: %v", err)
-		return
+		t.Fatalf("Failed to create memory: %v", err)
 	}
 
 	if memory.Namespace != "default" {
@@ -104,7 +125,7 @@ func TestStore_Create_DefaultNamespace(t *testing.T) {
 }
 
 func TestStore_GetByID(t *testing.T) {
-	store, _, cleanup := setupTestStore(t)
+	store, cleanup := setupTestStore(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -112,8 +133,7 @@ func TestStore_GetByID(t *testing.T) {
 
 	created, err := store.Create(ctx, "Test memory for get", "test", nil)
 	if err != nil {
-		t.Skipf("Embedding service not available: %v", err)
-		return
+		t.Fatalf("Failed to create memory: %v", err)
 	}
 
 	retrieved, err := store.GetByID(ctx, created.ID)
@@ -131,7 +151,7 @@ func TestStore_GetByID(t *testing.T) {
 }
 
 func TestStore_GetByID_NotFound(t *testing.T) {
-	store, _, cleanup := setupTestStore(t)
+	store, cleanup := setupTestStore(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -144,7 +164,7 @@ func TestStore_GetByID_NotFound(t *testing.T) {
 }
 
 func TestStore_List(t *testing.T) {
-	store, _, cleanup := setupTestStore(t)
+	store, cleanup := setupTestStore(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -152,10 +172,12 @@ func TestStore_List(t *testing.T) {
 
 	_, err := store.Create(ctx, "Memory 1", "list-test", nil)
 	if err != nil {
-		t.Skipf("Embedding service not available: %v", err)
-		return
+		t.Fatalf("Failed to create memory: %v", err)
 	}
-	_, _ = store.Create(ctx, "Memory 2", "list-test", nil)
+	_, err = store.Create(ctx, "Memory 2", "list-test", nil)
+	if err != nil {
+		t.Fatalf("Failed to create memory: %v", err)
+	}
 
 	params := ListParams{
 		Namespace: "list-test",
@@ -176,7 +198,7 @@ func TestStore_List(t *testing.T) {
 }
 
 func TestStore_DeleteByID(t *testing.T) {
-	store, _, cleanup := setupTestStore(t)
+	store, cleanup := setupTestStore(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -184,8 +206,7 @@ func TestStore_DeleteByID(t *testing.T) {
 
 	created, err := store.Create(ctx, "Memory to delete", "test", nil)
 	if err != nil {
-		t.Skipf("Embedding service not available: %v", err)
-		return
+		t.Fatalf("Failed to create memory: %v", err)
 	}
 
 	err = store.DeleteByID(ctx, created.ID)
@@ -200,14 +221,20 @@ func TestStore_DeleteByID(t *testing.T) {
 }
 
 func TestStore_DeleteByNamespace(t *testing.T) {
-	store, _, cleanup := setupTestStore(t)
+	store, cleanup := setupTestStore(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, _ = store.Create(ctx, "Memory 1", "delete-ns", nil)
-	_, _ = store.Create(ctx, "Memory 2", "delete-ns", nil)
+	_, err := store.Create(ctx, "Memory 1", "delete-ns", nil)
+	if err != nil {
+		t.Fatalf("Failed to create memory: %v", err)
+	}
+	_, err = store.Create(ctx, "Memory 2", "delete-ns", nil)
+	if err != nil {
+		t.Fatalf("Failed to create memory: %v", err)
+	}
 
 	filter := ForgetFilter{}
 	count, err := store.DeleteByNamespace(ctx, "delete-ns", filter)
@@ -222,7 +249,7 @@ func TestStore_DeleteByNamespace(t *testing.T) {
 }
 
 func TestStore_GetStats(t *testing.T) {
-	store, _, cleanup := setupTestStore(t)
+	store, cleanup := setupTestStore(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -230,8 +257,7 @@ func TestStore_GetStats(t *testing.T) {
 
 	_, err := store.Create(ctx, "Stats test memory", "stats-test", nil)
 	if err != nil {
-		t.Skipf("Embedding service not available: %v", err)
-		return
+		t.Fatalf("Failed to create memory: %v", err)
 	}
 
 	stats, err := store.GetStats(ctx, "")
@@ -252,7 +278,7 @@ func TestStore_GetStats(t *testing.T) {
 }
 
 func TestStore_Recall(t *testing.T) {
-	store, _, cleanup := setupTestStore(t)
+	store, cleanup := setupTestStore(t)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -260,22 +286,20 @@ func TestStore_Recall(t *testing.T) {
 
 	_, err := store.Create(ctx, "The quick brown fox jumps over the lazy dog", "recall-test", nil)
 	if err != nil {
-		t.Skipf("Embedding service not available: %v", err)
-		return
+		t.Fatalf("Failed to create memory: %v", err)
 	}
 
 	params := RecallParams{
 		Query:      "quick fox",
 		Namespaces: []string{"recall-test"},
 		TopK:       5,
-		Threshold:  0.5,
+		Threshold:  0.01,
 		Filter:     Filter{},
 	}
 
 	results, err := store.Recall(ctx, params)
 	if err != nil {
-		t.Skipf("Recall failed (embedding may not be available): %v", err)
-		return
+		t.Fatalf("Recall failed: %v", err)
 	}
 
 	if len(results) < 1 {

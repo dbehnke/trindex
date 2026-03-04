@@ -27,7 +27,7 @@ func TestStore_Export_Integration(t *testing.T) {
 	defer container.Terminate(ctx)
 
 	embeddingDim := 768
-	db, err := testutil.SetupTestDB(ctx, container.ConnStr, embeddingDim)
+	db, err := setupTestDBForIntegration(ctx, container.ConnStr, embeddingDim)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestStore_Import_Integration(t *testing.T) {
 	defer container.Terminate(ctx)
 
 	embeddingDim := 768
-	db, err := testutil.SetupTestDB(ctx, container.ConnStr, embeddingDim)
+	db, err := setupTestDBForIntegration(ctx, container.ConnStr, embeddingDim)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestStore_Import_WithDuplicateDetection_Integration(t *testing.T) {
 	defer container.Terminate(ctx)
 
 	embeddingDim := 768
-	db, err := testutil.SetupTestDB(ctx, container.ConnStr, embeddingDim)
+	db, err := setupTestDBForIntegration(ctx, container.ConnStr, embeddingDim)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
@@ -228,7 +228,7 @@ func TestStore_FindDuplicates_Integration(t *testing.T) {
 	defer container.Terminate(ctx)
 
 	embeddingDim := 768
-	db, err := testutil.SetupTestDB(ctx, container.ConnStr, embeddingDim)
+	db, err := setupTestDBForIntegration(ctx, container.ConnStr, embeddingDim)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
@@ -283,7 +283,7 @@ func TestStore_MergeDuplicates_Integration(t *testing.T) {
 	defer container.Terminate(ctx)
 
 	embeddingDim := 768
-	db, err := testutil.SetupTestDB(ctx, container.ConnStr, embeddingDim)
+	db, err := setupTestDBForIntegration(ctx, container.ConnStr, embeddingDim)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}

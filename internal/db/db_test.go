@@ -6,72 +6,112 @@ import (
 	"time"
 
 	"github.com/dbehnke/trindex/internal/config"
+	"github.com/dbehnke/trindex/internal/testutil"
 )
 
-func testConfig() *config.Config {
-	return &config.Config{
-		DatabaseURL:                "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
-		EmbedBaseURL:               "http://localhost:11434/v1",
-		EmbedModel:                 "nomic-embed-text",
-		EmbedAPIKey:                "ollama",
-		EmbedDimensions:            768,
-		HNSWM:                      16,
-		HNSWEfConstruction:         64,
-		HNSWEfSearch:               40,
-		DefaultNamespace:           "default",
-		DefaultTopK:                10,
-		DefaultSimilarityThreshold: 0.7,
-		DBMaxConns:                 10,
-		DBMinConns:                 2,
-		DBMaxConnLifetime:          60,
-		DBMaxConnIdleTime:          30,
+func setupTestDB(t *testing.T) (*DB, func()) {
+	t.Helper()
+
+	testutil.SkipIfNoDocker(t)
+
+	ctx := context.Background()
+
+	container, err := testutil.NewPostgresContainer(ctx)
+	if err != nil {
+		t.Fatalf("Failed to start postgres container: %v", err)
 	}
+
+	cfg := &config.Config{
+		DatabaseURL:        container.ConnStr,
+		EmbedDimensions:    768,
+		HNSWM:              16,
+		HNSWEfConstruction: 64,
+		HNSWEfSearch:       40,
+		DBMaxConns:         10,
+		DBMinConns:         2,
+		DBMaxConnLifetime:  60,
+		DBMaxConnIdleTime:  30,
+	}
+
+	database, err := New(cfg)
+	if err != nil {
+		_ = container.Terminate(ctx)
+		t.Fatalf("Failed to create database: %v", err)
+	}
+
+	if err := database.Migrate(ctx); err != nil {
+		database.Close()
+		_ = container.Terminate(ctx)
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	cleanup := func() {
+		database.Close()
+		_ = container.Terminate(ctx)
+	}
+
+	return database, cleanup
 }
 
 func TestNew(t *testing.T) {
-	cfg := testConfig()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	db, err := New(cfg)
-	if err != nil {
-		t.Skipf("Database not available: %v", err)
-		return
-	}
-	defer db.Close()
-
-	if db.Pool() == nil {
+	if database.Pool() == nil {
 		t.Error("expected pool to be initialized")
 	}
 
-	err = db.Pool().Ping(ctx)
+	err := database.Pool().Ping(ctx)
 	if err != nil {
 		t.Errorf("failed to ping database: %v", err)
 	}
 }
 
 func TestDB_Migrate(t *testing.T) {
-	cfg := testConfig()
+	t.Helper()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	testutil.SkipIfNoDocker(t)
+
+	ctx := context.Background()
+
+	container, err := testutil.NewPostgresContainer(ctx)
+	if err != nil {
+		t.Fatalf("Failed to start postgres container: %v", err)
+	}
+	defer func() { _ = container.Terminate(ctx) }()
+
+	cfg := &config.Config{
+		DatabaseURL:        container.ConnStr,
+		EmbedDimensions:    768,
+		HNSWM:              16,
+		HNSWEfConstruction: 64,
+		HNSWEfSearch:       40,
+		DBMaxConns:         10,
+		DBMinConns:         2,
+		DBMaxConnLifetime:  60,
+		DBMaxConnIdleTime:  30,
+	}
+
+	database, err := New(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create database: %v", err)
+	}
+	defer database.Close()
+
+	migrateCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	db, err := New(cfg)
-	if err != nil {
-		t.Skipf("Database not available: %v", err)
-		return
-	}
-	defer db.Close()
-
-	err = db.Migrate(ctx)
+	err = database.Migrate(migrateCtx)
 	if err != nil {
 		t.Errorf("migrate failed: %v", err)
 	}
 
 	var tableExists bool
 	query := `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'memories')`
-	err = db.Pool().QueryRow(ctx, query).Scan(&tableExists)
+	err = database.Pool().QueryRow(migrateCtx, query).Scan(&tableExists)
 	if err != nil {
 		t.Errorf("failed to check table existence: %v", err)
 	}
@@ -81,19 +121,13 @@ func TestDB_Migrate(t *testing.T) {
 }
 
 func TestDB_ExtensionExists(t *testing.T) {
-	cfg := testConfig()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	db, err := New(cfg)
-	if err != nil {
-		t.Skipf("Database not available: %v", err)
-		return
-	}
-	defer db.Close()
-
-	err = db.Migrate(ctx)
+	err := database.Migrate(ctx)
 	if err != nil {
 		t.Skipf("Migration failed: %v", err)
 		return
@@ -103,7 +137,7 @@ func TestDB_ExtensionExists(t *testing.T) {
 	for _, ext := range extensions {
 		var exists bool
 		query := `SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = $1)`
-		err := db.Pool().QueryRow(ctx, query, ext).Scan(&exists)
+		err := database.Pool().QueryRow(ctx, query, ext).Scan(&exists)
 		if err != nil {
 			t.Errorf("failed to check extension %s: %v", ext, err)
 			continue
@@ -115,19 +149,13 @@ func TestDB_ExtensionExists(t *testing.T) {
 }
 
 func TestDB_IndexesExist(t *testing.T) {
-	cfg := testConfig()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	db, err := New(cfg)
-	if err != nil {
-		t.Skipf("Database not available: %v", err)
-		return
-	}
-	defer db.Close()
-
-	err = db.Migrate(ctx)
+	err := database.Migrate(ctx)
 	if err != nil {
 		t.Skipf("Migration failed: %v", err)
 		return
@@ -144,7 +172,7 @@ func TestDB_IndexesExist(t *testing.T) {
 	for _, idx := range indexes {
 		var exists bool
 		query := `SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = $1)`
-		err := db.Pool().QueryRow(ctx, query, idx).Scan(&exists)
+		err := database.Pool().QueryRow(ctx, query, idx).Scan(&exists)
 		if err != nil {
 			t.Errorf("failed to check index %s: %v", idx, err)
 			continue
@@ -156,36 +184,25 @@ func TestDB_IndexesExist(t *testing.T) {
 }
 
 func TestDB_Close(t *testing.T) {
-	cfg := testConfig()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
 
-	db, err := New(cfg)
-	if err != nil {
-		t.Skipf("Database not available: %v", err)
-		return
-	}
-
-	db.Close()
+	database.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	err = db.Pool().Ping(ctx)
+	err := database.Pool().Ping(ctx)
 	if err == nil {
 		t.Error("expected ping to fail after close")
 	}
 }
 
 func TestDB_Pool(t *testing.T) {
-	cfg := testConfig()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
 
-	db, err := New(cfg)
-	if err != nil {
-		t.Skipf("Database not available: %v", err)
-		return
-	}
-	defer db.Close()
-
-	pool := db.Pool()
+	pool := database.Pool()
 	if pool == nil {
 		t.Error("expected pool to not be nil")
 		return
@@ -198,19 +215,13 @@ func TestDB_Pool(t *testing.T) {
 }
 
 func TestDB_Health(t *testing.T) {
-	cfg := testConfig()
+	database, cleanup := setupTestDB(t)
+	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	db, err := New(cfg)
-	if err != nil {
-		t.Skipf("Database not available: %v", err)
-		return
-	}
-	defer db.Close()
-
-	err = db.Health(ctx)
+	err := database.Health(ctx)
 	if err != nil {
 		t.Errorf("health check failed: %v", err)
 	}

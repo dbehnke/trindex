@@ -7,9 +7,36 @@ import (
 	"testing"
 
 	"github.com/dbehnke/trindex/internal/config"
+	"github.com/dbehnke/trindex/internal/db"
 	"github.com/dbehnke/trindex/internal/embed"
 	"github.com/dbehnke/trindex/internal/testutil"
 )
+
+func setupTestDBForIntegration(ctx context.Context, connStr string, embeddingDims int) (*db.DB, error) {
+	cfg := &config.Config{
+		DatabaseURL:        connStr,
+		EmbedDimensions:    embeddingDims,
+		HNSWM:              16,
+		HNSWEfConstruction: 64,
+		HNSWEfSearch:       40,
+		DBMaxConns:         10,
+		DBMinConns:         2,
+		DBMaxConnLifetime:  60,
+		DBMaxConnIdleTime:  30,
+	}
+
+	database, err := db.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := database.Migrate(ctx); err != nil {
+		database.Close()
+		return nil, err
+	}
+
+	return database, nil
+}
 
 func TestStore_Create_Integration(t *testing.T) {
 	testutil.SkipIfNoDocker(t)
@@ -23,7 +50,7 @@ func TestStore_Create_Integration(t *testing.T) {
 	defer container.Terminate(ctx)
 
 	embeddingDim := 768
-	db, err := testutil.SetupTestDB(ctx, container.ConnStr, embeddingDim)
+	db, err := setupTestDBForIntegration(ctx, container.ConnStr, embeddingDim)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
@@ -82,7 +109,7 @@ func TestStore_Recall_HybridSearch_Integration(t *testing.T) {
 	defer container.Terminate(ctx)
 
 	embeddingDim := 768
-	db, err := testutil.SetupTestDB(ctx, container.ConnStr, embeddingDim)
+	db, err := setupTestDBForIntegration(ctx, container.ConnStr, embeddingDim)
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}

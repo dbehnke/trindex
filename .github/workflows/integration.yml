@@ -9,6 +9,9 @@ on:
 jobs:
   integration:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code
@@ -24,6 +27,9 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+
       - name: Install go-task
         run: npm install -g @go-task/cli
 
@@ -33,6 +39,7 @@ jobs:
       - name: Run integration tests
         run: task test:integration:ci
         env:
+          CI: true
           TESTCONTAINERS_RYUK_DISABLED: "false"
           TESTCONTAINERS_RYUK_CONNECTION_TIMEOUT: "5m"
           DOCKER_HOST: unix:///var/run/docker.sock

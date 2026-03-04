@@ -9,16 +9,29 @@ import (
 	"github.com/dbehnke/trindex/internal/config"
 	"github.com/dbehnke/trindex/internal/db"
 	"github.com/dbehnke/trindex/internal/embed"
+	"github.com/dbehnke/trindex/internal/testutil"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func setupTestServer(t *testing.T) (*Server, func()) {
+	t.Helper()
+
+	testutil.SkipIfNoDocker(t)
+
+	ctx := context.Background()
+
+	container, err := testutil.NewPostgresContainer(ctx)
+	if err != nil {
+		t.Fatalf("Failed to start postgres container: %v", err)
+	}
+
+	embeddingDim := 768
 	cfg := &config.Config{
-		DatabaseURL:                "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
+		DatabaseURL:                container.ConnStr,
 		EmbedBaseURL:               "http://localhost:11434/v1",
 		EmbedModel:                 "nomic-embed-text",
 		EmbedAPIKey:                "ollama",
-		EmbedDimensions:            768,
+		EmbedDimensions:            embeddingDim,
 		HNSWM:                      16,
 		HNSWEfConstruction:         64,
 		HNSWEfSearch:               40,
@@ -33,18 +46,18 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 
 	database, err := db.New(cfg)
 	if err != nil {
-		t.Skipf("Database not available: %v", err)
-		return nil, func() {}
+		_ = container.Terminate(ctx)
+		t.Fatalf("Failed to create database: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	migrateCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	err = database.Migrate(ctx)
+	err = database.Migrate(migrateCtx)
 	if err != nil {
 		database.Close()
-		t.Skipf("Migration failed: %v", err)
-		return nil, func() {}
+		_ = container.Terminate(ctx)
+		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
 	embedClient := embed.NewClient(cfg)
@@ -53,6 +66,7 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 
 	cleanup := func() {
 		database.Close()
+		_ = container.Terminate(ctx)
 	}
 
 	return server, cleanup
@@ -61,10 +75,6 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 func TestServer_RegisterTools(t *testing.T) {
 	server, cleanup := setupTestServer(t)
 	defer cleanup()
-
-	if server == nil {
-		return
-	}
 
 	if server.store == nil {
 		t.Error("expected store to be initialized")
