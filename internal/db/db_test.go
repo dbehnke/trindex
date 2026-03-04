@@ -10,11 +10,21 @@ import (
 
 func testConfig() *config.Config {
 	return &config.Config{
-		DatabaseURL:       "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
-		DBMaxConns:        10,
-		DBMinConns:        2,
-		DBMaxConnLifetime: 60,
-		DBMaxConnIdleTime: 30,
+		DatabaseURL:                "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
+		EmbedBaseURL:               "http://localhost:11434/v1",
+		EmbedModel:                 "nomic-embed-text",
+		EmbedAPIKey:                "ollama",
+		EmbedDimensions:            768,
+		HNSWM:                      16,
+		HNSWEfConstruction:         64,
+		HNSWEfSearch:               40,
+		DefaultNamespace:           "default",
+		DefaultTopK:                10,
+		DefaultSimilarityThreshold: 0.7,
+		DBMaxConns:                 10,
+		DBMinConns:                 2,
+		DBMaxConnLifetime:          60,
+		DBMaxConnIdleTime:          30,
 	}
 }
 
