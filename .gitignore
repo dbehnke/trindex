@@ -20,7 +20,7 @@ vendor/
 go.work
 
 # Binary
-trindex
+/trindex
 
 # Environment files
 .env

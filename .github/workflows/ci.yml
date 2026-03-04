@@ -49,6 +49,9 @@ jobs:
       - name: Install dependencies
         run: task deps
 
+      - name: Build web UI
+        run: task web:build
+
       - name: Run tests
         env:
           DATABASE_URL: postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable
@@ -57,9 +60,6 @@ jobs:
           EMBED_API_KEY: ollama
           EMBED_DIMENSIONS: 768
         run: task test
-
-      - name: Build web UI
-        run: task web:build
 
       - name: Build with embedded assets
         run: task build
