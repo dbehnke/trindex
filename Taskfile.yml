@@ -82,6 +82,7 @@ tasks:
       - task: test:integration
     env:
       DOCKER_HOST: unix:///Users/dbehnke/.colima/default/docker.sock
+      TESTCONTAINERS_RYUK_DISABLED: "true"
 
   clean:
     desc: Clean build artifacts
