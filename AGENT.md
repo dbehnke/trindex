@@ -616,12 +616,12 @@ task check                    # Run all checks (fmt, lint, test, build)
   - Build Docker image
   - Lint with golangci-lint
   - Build and verify web UI
-- [ ] **1.6.4** Final integration test — full workflow
-  - Start Postgres via Docker Compose
-  - Start trindex with Ollama (or mock)
-  - Call `remember` tool
-  - Call `recall` tool
-  - Verify results
+- [x] **1.6.4** Final integration test — full workflow
+  - Testcontainers-based integration testing with pgvector
+  - Mock Ollama server for deterministic embeddings
+  - Works on macOS (Colima) and Linux/GitHub Actions
+  - See `plans/integration_testing.md` for full details
+  - Test utilities in `internal/testutil/`
 
 ### Phase 2 — HTTP/SSE + Web UI ✅ COMPLETED
 

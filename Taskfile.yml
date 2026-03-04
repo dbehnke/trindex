@@ -44,6 +44,43 @@ tasks:
     cmds:
       - go test -v -short ./...
 
+  test:integration:
+    desc: Run integration tests with Docker
+    cmds:
+      - go test -v -tags=integration ./...
+
+  test:integration:ci:
+    desc: Run integration tests in CI mode
+    cmds:
+      - CI=true go test -v -tags=integration ./...
+    env:
+      TESTCONTAINERS_RYUK_DISABLED: "false"
+      TESTCONTAINERS_RYUK_CONNECTION_TIMEOUT: 5m
+
+  test:all:
+    desc: Run all tests (unit + integration)
+    cmds:
+      - task: test
+      - task: test:integration
+
+  colima:check:
+    desc: Verify Colima is running (macOS only)
+    platforms: [darwin]
+    cmds:
+      - |
+        if ! colima status 2>/dev/null | grep -q "Running"; then
+          echo "❌ Colima is not running. Start it with: colima start --cpu 4 --memory 8"
+          exit 1
+        fi
+        echo "✅ Colima is running"
+
+  test:integration:mac:
+    desc: Run integration tests on macOS (checks Colima first)
+    platforms: [darwin]
+    deps: [colima:check]
+    cmds:
+      - task: test:integration
+
   clean:
     desc: Clean build artifacts
     cmds:
