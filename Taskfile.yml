@@ -13,7 +13,7 @@ tasks:
 
   build:
     desc: Build everything including web UI and embed assets
-    deps: [web-build]
+    deps: [web:build]
     cmds:
       - go build -o {{.BINARY}} ./cmd/trindex
 
