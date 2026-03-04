@@ -98,6 +98,53 @@ Then press `s` during presentation to open speaker view.
 3. **Show the Web UI** - People love seeing the actual interface
 4. **Have the repo ready** - Show the code if technical questions arise
 
+## Text-to-Speech (TTS) Integration
+
+The slides include several TTS options:
+
+### Quick Start: Web Speech API (Easiest)
+Add narration to your presentation with one line:
+
+```html
+<!-- Add to index.html before closing </body> -->
+<script src="tts-narrator.js"></script>
+```
+
+Then open in browser and click the 🔊 TTS button. Press 'T' to toggle.
+
+### Generate Video with TTS
+Create a complete video with narration:
+
+```bash
+cd slides
+python3 generate-video.py
+# Output: trindex-presentation.mp4
+```
+
+See `TTS-GUIDE.md` for detailed options including:
+- Cloud TTS (OpenAI, ElevenLabs) for professional quality
+- Browser-based narration for live presentations
+- Export to YouTube with automated narration
+
+## Additional Files
+
+### 4. `TTS-GUIDE.md`
+Complete guide for 5 different TTS integration methods:
+1. reveal.js Audio Plugin (offline, pre-recorded)
+2. Browser Web Speech API (live, free)
+3. Python Video Generator (YouTube export)
+4. ffmpeg + Cloud TTS (professional quality)
+5. Descript (video editing with Overdub)
+
+### 5. `tts-narrator.js`
+Ready-to-use Web Speech API integration. Just include in HTML.
+
+### 6. `generate-video.py`
+Python script to generate complete video with TTS narration.
+
+### 7. `generate-pdf.sh`
+Convert markdown slides to PDF using pandoc.
+
 ## Resources
 
 - **GitHub**: https://github.com/dbehnke/trindex
