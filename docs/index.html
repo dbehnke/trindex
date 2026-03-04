@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trindex - Persistent Semantic Memory for AI Agents</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1b26 0%, #24283b 100%);
+            color: #a9b1d6;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            padding: 3rem 0;
+            border-bottom: 2px solid #414868;
+            margin-bottom: 3rem;
+        }
+        
+        h1 {
+            font-size: 3.5rem;
+            color: #7aa2f7;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+        
+        .tagline {
+            font-size: 1.3rem;
+            color: #bb9af7;
+            margin-bottom: 1rem;
+        }
+        
+        .subtitle {
+            color: #565f89;
+            font-size: 1rem;
+        }
+        
+        .cta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 3rem 0;
+        }
+        
+        .cta-card {
+            background: #24283b;
+            border: 1px solid #414868;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .cta-card:hover {
+            transform: translateY(-5px);
+            border-color: #7aa2f7;
+            box-shadow: 0 10px 30px rgba(122, 162, 247, 0.1);
+        }
+        
+        .cta-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .cta-title {
+            font-size: 1.3rem;
+            color: #7aa2f7;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .cta-desc {
+            color: #565f89;
+            font-size: 0.95rem;
+        }
+        
+        .features {
+            margin: 4rem 0;
+        }
+        
+        h2 {
+            color: #7aa2f7;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .feature-item {
+            background: #1a1b26;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid #bb9af7;
+        }
+        
+        .feature-item h3 {
+            color: #bb9af7;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .feature-item p {
+            color: #565f89;
+            font-size: 0.9rem;
+        }
+        
+        .github-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #414868;
+            color: #c0caf5;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .github-link:hover {
+            background: #565f89;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 3rem 0;
+            border-top: 1px solid #414868;
+            margin-top: 4rem;
+            color: #565f89;
+        }
+        
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .badge {
+            background: #1a1b26;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            border: 1px solid #414868;
+        }
+        
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Trindex</h1>
+            <p class="tagline">Persistent Semantic Memory for AI Agents</p>
+            <p class="subtitle">One brain, every agent. Via Model Context Protocol (MCP).</p>
+            
+            <div class="badges">
+                <span class="badge">🤖 MCP-Native</span>
+                <span class="badge">🔍 Semantic Search</span>
+                <span class="badge">🐹 Go + PostgreSQL</span>
+                <span class="badge">🌐 REST + Web UI</span>
+            </div>
+        </header>
+        
+        <div class="cta-grid">
+            <a href="slides.html" class="cta-card">
+                <div class="cta-icon">📊</div>
+                <div class="cta-title">View Presentation</div>
+                <div class="cta-desc">Interactive slides with TTS narration. Learn about Trindex in 25 minutes.</div>
+            </a>
+            
+            <a href="cli.html" class="cta-card">
+                <div class="cta-icon">📖</div>
+                <div class="cta-title">CLI Reference</div>
+                <div class="cta-desc">Complete documentation for all commands and configuration options.</div>
+            </a>
+            
+            <a href="https://github.com/dbehnke/trindex" class="cta-card" target="_blank">
+                <div class="cta-icon">⭐</div>
+                <div class="cta-title">GitHub Repository</div>
+                <div class="cta-desc">Source code, installation guide, and contribution guidelines.</div>
+            </a>
+        </div>
+        
+        <section class="features">
+            <h2>Key Features</h2>
+            
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <h3>MCP Integration</h3>
+                    <p>Works with Claude Code, opencode, Cursor, and any MCP-compatible client.</p>
+                </div>
+                
+                <div class="feature-item">
+                    <h3>Semantic Search</h3>
+                    <p>Vector similarity + full-text search with RRF fusion for optimal results.</p>
+                </div>
+                
+                <div class="feature-item">
+                    <h3>Namespaces</h3>
+                    <p>Isolated memory spaces with automatic global fallback.</p>
+                </div>
+                
+                <div class="feature-item">
+                    <h3>Multiple Interfaces</h3>
+                    <p>REST API, Web UI, CLI, and MCP stdio transport.</p>
+                </div>
+                
+                <div class="feature-item">
+                    <h3>PostgreSQL Backend</h3>
+                    <p>Production-grade persistence with pgvector extension.</p>
+                </div>
+                
+                <div class="feature-item">
+                    <h3>Pluggable Embeddings</h3>
+                    <p>Ollama, OpenAI, or any OpenAI-compatible endpoint.</p>
+                </div>
+            </div>
+        </section>
+        
+        <footer>
+            <a href="https://github.com/dbehnke/trindex" class="github-link" target="_blank">
+                <svg height="20" viewBox="0 0 16 16" width="20" fill="currentColor" aria-label="GitHub">
+                    <title>GitHub</title>
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                </svg>
+                View on GitHub
+            </a>
+            
+            <p style="margin-top: 2rem;">
+                Business Source License 1.1 · <a href="https://github.com/dbehnke/trindex" style="color: #7aa2f7;">dbehnke/trindex</a>
+            </p>
+        </footer>
+        
+    </div>
+</body>
+</html>

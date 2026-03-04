@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trindex: Persistent Semantic Memory for AI Agents</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/theme/dracula.css">
+    <style>
+        :root {
+            --r-background-color: #1a1b26;
+            --r-main-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --r-heading-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --r-heading-color: #7aa2f7;
+            --r-main-color: #a9b1d6;
+            --r-link-color: #bb9af7;
+        }
+        
+        .reveal {
+            font-size: 32px;
+        }
+        
+        .reveal h1, .reveal h2, .reveal h3 {
+            color: #7aa2f7;
+            text-transform: none;
+            font-weight: 600;
+        }
+        
+        .reveal h1 { font-size: 2.2em; }
+        .reveal h2 { font-size: 1.6em; }
+        .reveal h3 { font-size: 1.3em; }
+        
+        .reveal ul {
+            list-style-type: none;
+        }
+        
+        .reveal ul li {
+            position: relative;
+            padding-left: 1.2em;
+            margin-bottom: 0.5em;
+        }
+        
+        .reveal ul li::before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #bb9af7;
+        }
+        
+        .reveal code {
+            background: #24283b;
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85em;
+        }
+        
+        .reveal pre {
+            background: #24283b;
+            padding: 1em;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        .reveal pre code {
+            background: transparent;
+            padding: 0;
+        }
+        
+        .reveal blockquote {
+            background: #24283b;
+            border-left: 4px solid #bb9af7;
+            padding: 0.5em 1em;
+            font-style: normal;
+        }
+        
+        .reveal .hljs {
+            background: transparent;
+        }
+        
+        .reveal table {
+            margin: 1em auto;
+            border-collapse: collapse;
+        }
+        
+        .reveal table th {
+            background: #24283b;
+            color: #7aa2f7;
+            padding: 0.5em 1em;
+            border-bottom: 2px solid #bb9af7;
+        }
+        
+        .reveal table td {
+            padding: 0.5em 1em;
+            border-bottom: 1px solid #414868;
+        }
+        
+        .title-slide {
+            text-align: center;
+        }
+        
+        .title-slide h1 {
+            font-size: 2.8em;
+            margin-bottom: 0.3em;
+        }
+        
+        .title-slide p {
+            font-size: 1.2em;
+            color: #bb9af7;
+        }
+        
+        .reveal .slides section .fragment {
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .reveal .slides section .fragment.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            
+            <!-- Slide 1: Title -->
+            <section class="title-slide">
+                <h1>Trindex</h1>
+                <p>Persistent Semantic Memory for AI Agents</p>
+                <p style="font-size: 0.8em; margin-top: 2em; color: #565f89;">via Model Context Protocol (MCP)</p>
+            </section>
+            
+            <!-- Slide 2: What is Trindex? -->
+            <section>
+                <h2>What is Trindex?</h2>
+                <ul>
+                    <li class="fragment">Standalone Go binary for AI agent memory</li>
+                    <li class="fragment">Vector embeddings in PostgreSQL + pgvector</li>
+                    <li class="fragment">Semantic similarity search</li>
+                    <li class="fragment">Hybrid search: vector + full-text (RRF)</li>
+                    <li class="fragment">Namespace scoping with global fallback</li>
+                    <li class="fragment">REST API + Web UI + CLI</li>
+                </ul>
+            </section>
+            
+            <!-- Slide 3: The Problem -->
+            <section>
+                <h2>The Problem</h2>
+                <h3>AI Agents Have No Memory</h3>
+                <ul>
+                    <li class="fragment">Every conversation starts fresh</li>
+                    <li class="fragment">Context windows are limited</li>
+                    <li class="fragment">No persistence across sessions</li>
+                    <li class="fragment">Building custom memory is complex</li>
+                </ul>
+                <blockquote class="fragment">
+                    Existing solutions: Python-only, heavy deps, or low-level
+                </blockquote>
+            </section>
+            
+            <!-- Slide 4: Key Features -->
+            <section>
+                <h2>Key Features</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1em;">
+                    <div>
+                        <h3>🤖 MCP-Native</h3>
+                        <p style="font-size: 0.8em;">Works with Claude Code, opencode, Cursor</p>
+                    </div>
+                    <div>
+                        <h3>🔍 Semantic Search</h3>
+                        <p style="font-size: 0.8em;">pgvector + tsvector + RRF fusion</p>
+                    </div>
+                    <div>
+                        <h3>📦 Namespaces</h3>
+                        <p style="font-size: 0.8em;">Isolated spaces with global fallback</p>
+                    </div>
+                    <div>
+                        <h3>🌐 Multi-Interface</h3>
+                        <p style="font-size: 0.8em;">REST API, Web UI, CLI</p>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Slide 5: Architecture -->
+            <section>
+                <h2>Architecture</h2>
+                <pre><code class="text">┌─────────────────┐
+│   MCP Client    │  (Claude, opencode, etc.)
+└────────┬────────┘
+         │ stdio
+┌────────▼────────┐
+│  trindex mcp    │  (MCP server)
+└────────┬────────┘
+         │
+┌────────▼────────┐     ┌─────────────────┐
+│  trindex server │────▶│  REST API       │
+│  (HTTP + Web UI)│     │  /api/memories  │
+└────────┬────────┘     │  /api/search    │
+         │              └─────────────────┘
+┌────────▼────────┐
+│   PostgreSQL    │  (pgvector extension)
+│   + pgvector    │
+└─────────────────┘</code></pre>
+            </section>
+            
+            <!-- Slide 6: CLI Redesign -->
+            <section>
+                <h2>CLI Redesign</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2em;">
+                    <div>
+                        <h3 style="color: #f7768e;">Before</h3>
+                        <pre><code class="bash">./trindex
+# Starts everything
+# No standalone mode
+# No CLI API access</code></pre>
+                    </div>
+                    <div>
+                        <h3 style="color: #9ece6a;">After</h3>
+                        <pre><code class="bash">./trindex mcp      # MCP only
+./trindex server   # HTTP only
+./trindex doctor   # Diagnostics
+./trindex memories # CRUD ops
+./trindex search   # Search CLI</code></pre>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Slide 7: CLI Demo -->
+            <section>
+                <h2>CLI Commands</h2>
+                <pre><code class="bash"># Diagnostics
+./trindex doctor
+# ✅ Config  ✅ Database  ✅ Embeddings
+
+# Memory Operations
+./trindex memories list --namespace work
+./trindex memories create --content "..."
+./trindex search "architecture" --top-k 10
+
+# Data Management
+./trindex export --output backup.jsonl
+./trindex import memories.jsonl</code></pre>
+            </section>
+            
+            <!-- Slide 8: Technical Stack -->
+            <section>
+                <h2>Technical Stack</h2>
+                <table>
+                    <tr>
+                        <th>Component</th>
+                        <th>Technology</th>
+                    </tr>
+                    <tr>
+                        <td>Language</td>
+                        <td>Go 1.26+</td>
+                    </tr>
+                    <tr>
+                        <td>Database</td>
+                        <td>PostgreSQL 17 + pgvector</td>
+                    </tr>
+                    <tr>
+                        <td>Vector Index</td>
+                        <td>HNSW (cosine)</td>
+                    </tr>
+                    <tr>
+                        <td>Embeddings</td>
+                        <td>OpenAI-compatible</td>
+                    </tr>
+                    <tr>
+                        <td>Web</td>
+                        <td>Vue 3 + Tailwind v4</td>
+                    </tr>
+                    <tr>
+                        <td>Testing</td>
+                        <td>testcontainers-go</td>
+                    </tr>
+                </table>
+            </section>
+            
+            <!-- Slide 9: Database Schema -->
+            <section>
+                <h2>Database Schema</h2>
+                <pre><code class="sql">CREATE TABLE memories (
+    id          UUID PRIMARY KEY,
+    namespace   TEXT NOT NULL DEFAULT 'default',
+    content     TEXT NOT NULL,
+    embedding   VECTOR(768),
+    metadata    JSONB DEFAULT '{}',
+    search_vec  TSVECTOR GENERATED ALWAYS AS 
+                  (to_tsvector('english', content)) 
+                  STORED,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX memories_embedding_hnsw_idx
+    ON memories USING hnsw 
+    (embedding vector_cosine_ops);</code></pre>
+            </section>
+            
+            <!-- Slide 10: Why Trindex? -->
+            <section>
+                <h2>Why Trindex?</h2>
+                <div style="text-align: left;">
+                    <h3>👨‍💻 For Agent Developers</h3>
+                    <p style="font-size: 0.8em;">Drop-in MCP memory, no Python deps, language-agnostic</p>
+                    
+                    <h3>🖥️ For DevOps</h3>
+                    <p style="font-size: 0.8em;">Single binary, Docker Compose, uses existing Postgres</p>
+                    
+                    <h3>👥 For End Users</h3>
+                    <p style="font-size: 0.8em;">Web UI, CLI scripting, import/export - no lock-in</p>
+                </div>
+            </section>
+            
+            <!-- Slide 11: Roadmap -->
+            <section>
+                <h2>Future Roadmap</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1em; font-size: 0.7em;">
+                    <div>
+                        <h3>Phase 3</h3>
+                        <ul>
+                            <li>Auth &amp; RBAC</li>
+                            <li>Multi-tenant</li>
+                            <li>Audit logging</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>Phase 4</h3>
+                        <ul>
+                            <li>Reranking</li>
+                            <li>Query expansion</li>
+                            <li>Memory decay</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>Phase 5</h3>
+                        <ul>
+                            <li>LangChain</li>
+                            <li>Python client</li>
+                            <li>Webhooks</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Slide 12: Getting Started -->
+            <section>
+                <h2>Getting Started</h2>
+                <pre><code class="bash"># Clone and setup
+git clone https://github.com/dbehnke/trindex.git
+cd trindex
+cp .env.example .env
+# Edit .env with your embedding endpoint
+
+# Run with Docker Compose
+docker compose up -d
+
+# Or build locally
+go build -o trindex ./cmd/trindex
+./trindex doctor  # Verify setup</code></pre>
+            </section>
+            
+            <!-- Slide 13: Demo -->
+            <section>
+                <h2>Demo</h2>
+                <div style="text-align: center; margin-top: 3em;">
+                    <p style="font-size: 1.5em; color: #bb9af7;">Live Demonstration</p>
+                    <ul style="display: inline-block; text-align: left;">
+                        <li>Run diagnostics</li>
+                        <li>Start server</li>
+                        <li>Create memories</li>
+                        <li>Search and browse</li>
+                        <li>Export/import</li>
+                    </ul>
+                </div>
+            </section>
+            
+            <!-- Slide 14: Questions -->
+            <section>
+                <h2>Questions?</h2>
+                <div style="text-align: center; margin-top: 2em;">
+                    <p>📁 <strong>GitHub</strong>: github.com/dbehnke/trindex</p>
+                    <p>📚 <strong>Docs</strong>: docs/cli.md</p>
+                    <p>🌐 <strong>MCP Spec</strong>: modelcontextprotocol.io</p>
+                    <p style="margin-top: 2em; color: #565f89;">Business Source License 1.1</p>
+                </div>
+            </section>
+            
+            <!-- Slide 15: Thank You -->
+            <section class="title-slide">
+                <h1>Thank You!</h1>
+                <p style="font-size: 1.5em; color: #bb9af7;">Trindex</p>
+                <p style="font-size: 1.2em;">One brain, every agent.</p>
+                <p style="margin-top: 2em; font-size: 0.8em; color: #565f89;">Persistent semantic memory for the AI age</p>
+            </section>
+            
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/plugin/highlight/highlight.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: true,
+            showSlideNumber: 'all',
+            transition: 'slide',
+            transitionSpeed: 'default',
+            backgroundTransition: 'fade',
+            plugins: [RevealHighlight],
+            width: 1280,
+            height: 720,
+            margin: 0.1,
+            minScale: 0.2,
+            maxScale: 2.0,
+            keyboard: {
+                13: 'next', // go to the next slide on enter
+            }
+        });
+    </script>
+    <!-- Text-to-Speech Narration -->
+    <script src="https://cdn.jsdelivr.net/gh/dbehnke/trindex@main/slides/tts-narrator.js"></script>
+</body>
+</html>

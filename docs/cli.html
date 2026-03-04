@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>CLI Reference - Trindex</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css" />
+</head>
+<body>
+<h1 id="cli-reference">CLI Reference</h1>
+<p>Complete reference for the Trindex CLI commands.</p>
+<h2 id="overview">Overview</h2>
+<p>Trindex provides a command-line interface with explicit subcommands
+for different modes of operation:</p>
+<ul>
+<li><strong>mcp</strong> - Run MCP server (stdio) for AI agent
+integration</li>
+<li><strong>server</strong> - Run HTTP server only for standalone REST
+API deployment</li>
+<li><strong>doctor</strong> - Run diagnostics to check configuration and
+connectivity</li>
+<li><strong>memories</strong> - Memory operations (list, get, create,
+delete)</li>
+<li><strong>search</strong> - Search memories with semantic
+similarity</li>
+<li><strong>stats</strong> - Show database statistics</li>
+<li><strong>export</strong> - Export memories to JSONL</li>
+<li><strong>import</strong> - Import memories from JSONL</li>
+<li><strong>version</strong> - Show version information</li>
+</ul>
+<h2 id="global-flags">Global Flags</h2>
+<p>These flags are available for all commands:</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--config PATH</code></td>
+<td>Config file path</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--env-file PATH</code></td>
+<td>.env file path</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--log-level LEVEL</code></td>
+<td>Log level (debug|info|warn|error)</td>
+<td>info</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>Output as JSON</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>--api-key KEY</code></td>
+<td>API key for REST commands</td>
+<td>TRINDEX_API_KEY env</td>
+</tr>
+<tr>
+<td><code>--api-url URL</code></td>
+<td>Trindex HTTP API URL</td>
+<td>http://localhost:8080</td>
+</tr>
+</tbody>
+</table>
+<h2 id="commands">Commands</h2>
+<h3 id="mcp">mcp</h3>
+<p>Run the MCP server for AI agent integration via stdio transport.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> mcp <span class="pp">[</span><span class="ss">flags</span><span class="pp">]</span></span></code></pre></div>
+<p><strong>Flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--config PATH</code></td>
+<td>Config file path</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--remote URL</code></td>
+<td>Remote Trindex HTTP API URL (future)</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--api-key KEY</code></td>
+<td>API key for remote connection</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Run MCP server with default config</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> mcp</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Run with custom config</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> mcp <span class="at">--config</span> /path/to/config.yaml</span></code></pre></div>
+<h3 id="server">server</h3>
+<p>Run the HTTP server only (no MCP).</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> server <span class="pp">[</span><span class="ss">flags</span><span class="pp">]</span></span></code></pre></div>
+<p><strong>Flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--host HOST</code></td>
+<td>HTTP host</td>
+<td>0.0.0.0</td>
+</tr>
+<tr>
+<td><code>--port PORT</code></td>
+<td>HTTP port</td>
+<td>8080</td>
+</tr>
+<tr>
+<td><code>--no-ui</code></td>
+<td>Disable web UI, API only</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Run server on default port</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> server</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Run on custom port</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> server <span class="at">--port</span> 3000</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># API only (no web UI)</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> server <span class="at">--no-ui</span></span></code></pre></div>
+<h3 id="doctor">doctor</h3>
+<p>Run diagnostics to check configuration and connectivity.</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> doctor</span></code></pre></div>
+<p><strong>Checks performed:</strong></p>
+<ol type="1">
+<li>Configuration loading</li>
+<li>Database connectivity</li>
+<li>Embedding endpoint accessibility</li>
+<li>Dimension validation</li>
+</ol>
+<p><strong>Exit codes:</strong></p>
+<ul>
+<li><code>0</code> - All checks passed</li>
+<li><code>1</code> - One or more checks failed</li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> doctor</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Output:</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 🔍 Trindex Doctor</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Checking configuration... ✅ PASSED</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">#    Database URL: postgres://trindex:***@localhost:5432/trindex</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">#    Embed Model: nomic-embed-text</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co">#    Embed Dimensions: 768</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Checking database connection... ✅ PASSED</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="co">#    Memories in database: 42</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Checking embedding endpoint... ✅ PASSED</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="co">#    Endpoint: http://localhost:11434/v1</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="co">#    Returned dimensions: 768</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="co"># 🎉 All checks passed! Trindex is ready to go.</span></span></code></pre></div>
+<h3 id="memories">memories</h3>
+<p>Memory operations with subcommands.</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories <span class="op">&lt;</span>subcommand<span class="op">&gt;</span> <span class="pp">[</span><span class="ss">flags</span><span class="pp">]</span></span></code></pre></div>
+<p><strong>Subcommands:</strong></p>
+<ul>
+<li><code>list</code> - List memories</li>
+<li><code>get ID</code> - Get a memory by ID</li>
+<li><code>create</code> - Create a new memory</li>
+<li><code>delete ID</code> - Delete a memory</li>
+</ul>
+<h4 id="memories-list">memories list</h4>
+<p>List memories with optional filtering.</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories list <span class="pp">[</span><span class="ss">flags</span><span class="pp">]</span></span></code></pre></div>
+<p><strong>Flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--namespace NS</code></td>
+<td>Filter by namespace</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--limit N</code></td>
+<td>Limit results</td>
+<td>20</td>
+</tr>
+<tr>
+<td><code>--offset N</code></td>
+<td>Pagination offset</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>--order asc\|desc</code></td>
+<td>Sort order</td>
+<td>desc</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>Output as JSON</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># List all memories</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories list</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># List memories in namespace</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories list <span class="at">--namespace</span> myproject</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co"># List with pagination</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories list <span class="at">--limit</span> 50 <span class="at">--offset</span> 100</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Output as JSON</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories list <span class="at">--json</span></span></code></pre></div>
+<h4 id="memories-get">memories get</h4>
+<p>Get a specific memory by ID.</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories get <span class="op">&lt;</span>id<span class="op">&gt;</span> <span class="pp">[</span><span class="ss">flags</span><span class="pp">]</span></span></code></pre></div>
+<p><strong>Flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--json</code></td>
+<td>Output as JSON</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories get 550e8400-e29b-41d4-a716-446655440000</span></code></pre></div>
+<h4 id="memories-create">memories create</h4>
+<p>Create a new memory.</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories create <span class="pp">[</span><span class="ss">flags</span><span class="pp">]</span></span></code></pre></div>
+<p><strong>Flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--content "text"</code></td>
+<td>Memory content</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--namespace NS</code></td>
+<td>Namespace</td>
+<td>default</td>
+</tr>
+<tr>
+<td><code>--metadata key=value</code></td>
+<td>Metadata key-value</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--file PATH</code></td>
+<td>Read content from file</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>Output as JSON</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create simple memory</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories create <span class="at">--content</span> <span class="st">&quot;Important information&quot;</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create with namespace and metadata</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories create <span class="dt">\</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--content</span> <span class="st">&quot;Project architecture&quot;</span> <span class="dt">\</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--namespace</span> work <span class="dt">\</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--metadata</span> project=myapp <span class="dt">\</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--metadata</span> type=architecture</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Create from file</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories create <span class="at">--file</span> notes.txt <span class="at">--namespace</span> research</span></code></pre></div>
+<h4 id="memories-delete">memories delete</h4>
+<p>Delete a memory by ID.</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories delete <span class="op">&lt;</span>id<span class="op">&gt;</span> <span class="pp">[</span><span class="ss">flags</span><span class="pp">]</span></span></code></pre></div>
+<p><strong>Flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--force</code></td>
+<td>Skip confirmation</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Delete with confirmation</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories delete 550e8400-e29b-41d4-a716-446655440000</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Delete without confirmation</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> memories delete 550e8400-e29b-41d4-a716-446655440000 <span class="at">--force</span></span></code></pre></div>
+<h3 id="search">search</h3>
+<p>Search memories using semantic similarity.</p>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> search <span class="st">&quot;query&quot;</span> <span class="pp">[</span><span class="ss">flags</span><span class="pp">]</span></span></code></pre></div>
+<p><strong>Flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--namespace NS</code></td>
+<td>Search namespace (repeatable)</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--top-k N</code></td>
+<td>Number of results</td>
+<td>10</td>
+</tr>
+<tr>
+<td><code>--threshold 0.0-1.0</code></td>
+<td>Similarity threshold</td>
+<td>0.7</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>Output as JSON</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simple search</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> search <span class="st">&quot;machine learning algorithms&quot;</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Search in specific namespace</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> search <span class="st">&quot;project plans&quot;</span> <span class="at">--namespace</span> work</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Search with options</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> search <span class="st">&quot;architecture&quot;</span> <span class="at">--top-k</span> 20 <span class="at">--threshold</span> 0.8</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Output as JSON</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> search <span class="st">&quot;design patterns&quot;</span> <span class="at">--json</span></span></code></pre></div>
+<h3 id="stats">stats</h3>
+<p>Show database statistics.</p>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> stats <span class="pp">[</span><span class="ss">flags</span><span class="pp">]</span></span></code></pre></div>
+<p><strong>Flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--namespace NS</code></td>
+<td>Stats for specific namespace</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>Output as JSON</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Show all stats</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> stats</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Stats for namespace</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> stats <span class="at">--namespace</span> myproject</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Output as JSON</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> stats <span class="at">--json</span></span></code></pre></div>
+<h3 id="export">export</h3>
+<p>Export memories to JSONL format.</p>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> export <span class="pp">[</span><span class="ss">flags</span><span class="pp">]</span></span></code></pre></div>
+<p><strong>Flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--output FILE</code></td>
+<td>Output file (default: stdout)</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--namespace NS</code></td>
+<td>Export specific namespace</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--since DATE</code></td>
+<td>Export memories since date (RFC3339)</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>--until DATE</code></td>
+<td>Export memories until date (RFC3339)</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Export to stdout</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> export</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Export to file</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> export <span class="at">--output</span> memories.jsonl</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Export specific namespace</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> export <span class="at">--namespace</span> myproject <span class="at">--output</span> myproject.jsonl</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Export date range</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> export <span class="at">--since</span> 2024-01-01T00:00:00Z <span class="at">--until</span> 2024-12-31T23:59:59Z</span></code></pre></div>
+<h3 id="import">import</h3>
+<p>Import memories from JSONL format.</p>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> import <span class="op">&lt;</span>file<span class="op">&gt;</span> <span class="pp">[</span><span class="ss">flags</span><span class="pp">]</span></span></code></pre></div>
+<p><strong>Flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--skip-existing</code></td>
+<td>Skip duplicates</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>--namespace NS</code></td>
+<td>Import to specific namespace</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Import from file</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> import memories.jsonl</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Skip existing memories</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> import memories.jsonl <span class="at">--skip-existing</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Import to specific namespace</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> import memories.jsonl <span class="at">--namespace</span> work</span></code></pre></div>
+<h3 id="version">version</h3>
+<p>Show version information.</p>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="ex">trindex</span> version</span></code></pre></div>
+<h2 id="environment-variables">Environment Variables</h2>
+<p>Trindex can be configured via environment variables. These can also
+be set in a <code>.env</code> file.</p>
+<h3 id="database">Database</h3>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 40%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DATABASE_URL</code></td>
+<td>PostgreSQL connection string</td>
+<td>postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable</td>
+</tr>
+</tbody>
+</table>
+<h3 id="embedding">Embedding</h3>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 40%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EMBED_BASE_URL</code></td>
+<td>Embedding API base URL</td>
+<td>http://localhost:11434/v1</td>
+</tr>
+<tr>
+<td><code>EMBED_MODEL</code></td>
+<td>Embedding model name</td>
+<td>nomic-embed-text</td>
+</tr>
+<tr>
+<td><code>EMBED_API_KEY</code></td>
+<td>Embedding API key</td>
+<td>ollama</td>
+</tr>
+<tr>
+<td><code>EMBED_DIMENSIONS</code></td>
+<td>Embedding dimensions</td>
+<td>768</td>
+</tr>
+</tbody>
+</table>
+<h3 id="server-1">Server</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HTTP_HOST</code></td>
+<td>HTTP server host</td>
+<td>0.0.0.0</td>
+</tr>
+<tr>
+<td><code>HTTP_PORT</code></td>
+<td>HTTP server port</td>
+<td>8080</td>
+</tr>
+<tr>
+<td><code>TRINDEX_API_KEY</code></td>
+<td>API key for REST endpoints</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="search-1">Search</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DEFAULT_TOP_K</code></td>
+<td>Default number of search results</td>
+<td>10</td>
+</tr>
+<tr>
+<td><code>DEFAULT_SIMILARITY_THRESHOLD</code></td>
+<td>Default similarity threshold</td>
+<td>0.7</td>
+</tr>
+<tr>
+<td><code>HYBRID_VECTOR_WEIGHT</code></td>
+<td>Vector search weight</td>
+<td>0.7</td>
+</tr>
+<tr>
+<td><code>HYBRID_FTS_WEIGHT</code></td>
+<td>Full-text search weight</td>
+<td>0.3</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hnsw-index">HNSW Index</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HNSW_M</code></td>
+<td>HNSW M parameter</td>
+<td>16</td>
+</tr>
+<tr>
+<td><code>HNSW_EF_CONSTRUCTION</code></td>
+<td>HNSW ef_construction</td>
+<td>64</td>
+</tr>
+<tr>
+<td><code>HNSW_EF_SEARCH</code></td>
+<td>HNSW ef_search</td>
+<td>40</td>
+</tr>
+</tbody>
+</table>
+<h2 id="configuration-file">Configuration File</h2>
+<p>Trindex supports YAML configuration files. Use <code>--config</code>
+to specify the path.</p>
+<p><strong>Example config.yaml:</strong></p>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">database</span><span class="kw">:</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">url</span><span class="kw">:</span><span class="at"> postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="fu">embedding</span><span class="kw">:</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">base_url</span><span class="kw">:</span><span class="at"> http://localhost:11434/v1</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">model</span><span class="kw">:</span><span class="at"> nomic-embed-text</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">api_key</span><span class="kw">:</span><span class="at"> ollama</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">dimensions</span><span class="kw">:</span><span class="at"> </span><span class="dv">768</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a><span class="fu">server</span><span class="kw">:</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">host</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.0.0.0</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">port</span><span class="kw">:</span><span class="at"> </span><span class="dv">8080</span></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a><span class="fu">recall</span><span class="kw">:</span></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">default_namespace</span><span class="kw">:</span><span class="at"> default</span></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">default_top_k</span><span class="kw">:</span><span class="at"> </span><span class="dv">10</span></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">default_threshold</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.7</span></span></code></pre></div>
+</body>
+</html>
