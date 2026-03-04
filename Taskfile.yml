@@ -68,7 +68,7 @@ tasks:
     platforms: [darwin]
     cmds:
       - |
-        if ! colima status 2>/dev/null | grep -qi "running"; then
+        if ! colima status 2>&1 | grep -qi "is running"; then
           echo "❌ Colima is not running. Start it with: colima start --cpu 4 --memory 8"
           exit 1
         fi
