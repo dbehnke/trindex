@@ -52,7 +52,6 @@ func (s *Store) Export(ctx context.Context, namespace string, since, until *time
 	if until != nil {
 		query += fmt.Sprintf(" AND created_at <= $%d", argIdx)
 		args = append(args, *until)
-		argIdx++
 	}
 
 	query += " ORDER BY created_at DESC"
@@ -293,7 +292,7 @@ func (s *Store) MergeDuplicates(ctx context.Context, keepID, removeID uuid.UUID)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	query := `DELETE FROM memories WHERE id = $1`
 	_, err = tx.Exec(ctx, query, removeID)
