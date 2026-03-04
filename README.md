@@ -10,7 +10,7 @@ Trindex is a standalone Go binary that provides persistent, semantic memory for 
 
 ### Prerequisites
 
-- Go 1.23+ (for building from source)
+- Go 1.26+ (for building from source)
 - Docker and Docker Compose (recommended)
 - Postgres 17 with pgvector extension
 - An OpenAI-compatible embedding endpoint (Ollama, LM Studio, OpenAI, etc.)
@@ -50,6 +50,31 @@ DATABASE_URL=postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable \
   EMBED_MODEL=nomic-embed-text \
   ./trindex
 ```
+
+## Web UI
+
+Trindex includes a built-in web interface for browsing and managing memories. The web UI is automatically served when the HTTP server is running.
+
+### Accessing the Web UI
+
+Once Trindex is running, open your browser to:
+```
+http://localhost:8080
+```
+
+The web interface provides:
+- **Dashboard** - Overview of memory statistics and recent activity
+- **Memory Browser** - View, search, create, and delete memories
+- **Search** - Perform semantic searches with filters
+- **Stats** - Detailed analytics on memory usage
+
+### Web UI Features
+
+- Dark mode toggle
+- Responsive design for mobile devices
+- Real-time memory statistics
+- Namespace filtering
+- Similarity-based search results
 
 ## MCP Configuration
 

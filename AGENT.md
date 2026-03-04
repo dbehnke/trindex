@@ -141,11 +141,18 @@ trindex/
 │   │   ├── store.go                 # Remember, forget, list
 │   │   ├── recall.go                # Hybrid search (vector + FTS + RRF)
 │   │   └── stats.go                 # Stats queries
-│   └── mcp/
-│       ├── server.go                # MCP server setup, tool registration
-│       └── tools.go                 # Tool handler implementations
-├── web/                             # Phase 2: Vue + Tailwind v4 source
-│   └── dist/                        # Phase 2: compiled assets, embedded via go:embed
+│   ├── mcp/
+│   │   ├── server.go                # MCP server setup, tool registration
+│   │   └── tools.go                 # Tool handler implementations
+│   ├── testutil/                    # Test utilities for integration tests
+│   │   ├── db.go                    # Testcontainers Postgres setup
+│   │   └── mock_ollama.go           # Mock embedding server
+│   └── web/                         # Phase 2: HTTP server + embedded web UI
+│       ├── server.go                # HTTP server with REST API
+│       └── dist/                    # Compiled Vue assets, embedded via go:embed
+├── web/                             # Phase 2: Vue + Tailwind v4 source (builds to internal/web/dist)
+│   ├── src/                         # Vue source files
+│   └── dist/                        # Build output (copied to internal/web/dist)
 ├── docker-compose.yml
 ├── Dockerfile
 ├── .env.example
@@ -367,7 +374,7 @@ services:
       EMBED_BASE_URL: ${EMBED_BASE_URL:-http://host.docker.internal:11434/v1}
       EMBED_MODEL: ${EMBED_MODEL:-nomic-embed-text}
       EMBED_API_KEY: ${EMBED_API_KEY:-ollama}
-      EMBED_DIMENSIONS: ${EMBED_DIMENSIONS:-1536}
+      EMBED_DIMENSIONS: ${EMBED_DIMENSIONS:-768}
       TRANSPORT: stdio
     stdin_open: true
 
@@ -380,7 +387,7 @@ volumes:
 ## Dockerfile
 
 ```dockerfile
-FROM golang:1.23-alpine AS builder
+FROM golang:1.26-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -623,9 +630,9 @@ task check                    # Run all checks (fmt, lint, test, build)
   - See `plans/integration_testing.md` for full details
   - Test utilities in `internal/testutil/`
 
-### Phase 2 — HTTP/SSE + Web UI ✅ COMPLETED
+### Phase 2 — HTTP + Web UI ✅ COMPLETED
 
-#### 2.1 HTTP/SSE Transport
+#### 2.1 HTTP Transport
 - [x] **2.1.1** Implement transport abstraction layer
   - Web server runs alongside MCP stdio transport
   - Clean separation of concerns between MCP and HTTP APIs
@@ -691,9 +698,7 @@ task check                    # Run all checks (fmt, lint, test, build)
   - Loading indicators
   - Error messages in modals
 
-### Phase 3 — Polish (current)
-
-### Phase 3 — Polish
+### Phase 3 — Polish (in progress)
 
 #### 3.1 Enhanced Features
 - [ ] **3.1.1** LLM metadata extraction (optional)
