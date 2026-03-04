@@ -37,7 +37,7 @@ type Response struct {
 func NewClient(cfg *config.Config) *Client {
 	timeout := time.Duration(cfg.EmbedRequestTimeout) * time.Second
 	if timeout == 0 {
-	timeout = 30 * time.Second
+		timeout = 30 * time.Second
 	}
 
 	return &Client{
