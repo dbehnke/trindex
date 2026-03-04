@@ -44,11 +44,77 @@ cd trindex
 # Build the binary
 go build -o trindex ./cmd/trindex
 
-# Run with environment variables
-DATABASE_URL=postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable \
-  EMBED_BASE_URL=http://localhost:11434/v1 \
-  EMBED_MODEL=nomic-embed-text \
-  ./trindex
+# Run diagnostics to verify configuration
+./trindex doctor
+```
+
+## CLI Commands
+
+Trindex provides a command-line interface with explicit subcommands for different modes of operation.
+
+### Primary Commands
+
+```bash
+# Run MCP server (stdio) - for AI agent integration
+./trindex mcp
+
+# Run HTTP server only - standalone REST API
+./trindex server
+
+# Run diagnostics - check configuration and connectivity
+./trindex doctor
+
+# Show version information
+./trindex version
+```
+
+### REST API CLI Commands
+
+When the HTTP server is running, you can use these CLI commands to interact with it:
+
+```bash
+# List memories
+./trindex memories list
+./trindex memories list --namespace myproject --limit 50
+./trindex memories list --json
+
+# Get a specific memory
+./trindex memories get <id>
+
+# Create a memory
+./trindex memories create --content "Important information"
+./trindex memories create --content "Project details" --namespace work --metadata key=value
+
+# Delete a memory
+./trindex memories delete <id>
+./trindex memories delete <id> --force
+
+# Search memories
+./trindex search "query"
+./trindex search "query" --namespace myproject --top-k 20
+
+# Show statistics
+./trindex stats
+./trindex stats --json
+
+# Export memories
+./trindex export --output memories.jsonl
+./trindex export --namespace myproject --since 2024-01-01T00:00:00Z
+
+# Import memories
+./trindex import memories.jsonl
+./trindex import memories.jsonl --skip-existing
+```
+
+### Global Flags
+
+```bash
+--config PATH      # Config file path
+--env-file PATH    # .env file path
+--log-level LEVEL  # Log level (debug|info|warn|error)
+--json             # Output as JSON
+--api-key KEY      # API key for REST commands
+--api-url URL      # Trindex HTTP API URL
 ```
 
 ## Web UI
@@ -57,7 +123,7 @@ Trindex includes a built-in web interface for browsing and managing memories. Th
 
 ### Accessing the Web UI
 
-Once Trindex is running, open your browser to:
+Once the server is running, open your browser to:
 ```
 http://localhost:8080
 ```
@@ -78,6 +144,8 @@ The web interface provides:
 
 ## MCP Configuration
 
+MCP clients **must** use the explicit `mcp` subcommand:
+
 ### opencode
 
 Add to `~/.config/opencode/opencode.json`:
@@ -87,7 +155,7 @@ Add to `~/.config/opencode/opencode.json`:
   "mcp": {
     "trindex": {
       "type": "local",
-      "command": ["/path/to/trindex"],
+      "command": ["/path/to/trindex", "mcp"],
       "enabled": true
     }
   }
@@ -97,7 +165,7 @@ Add to `~/.config/opencode/opencode.json`:
 ### Claude Code
 
 ```bash
-claude mcp add trindex --command /path/to/trindex
+claude mcp add trindex --command "/path/to/trindex mcp"
 ```
 
 ## Development

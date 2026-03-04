@@ -412,7 +412,7 @@ Add to `opencode.json` or `~/.config/opencode/opencode.json`:
   "mcp": {
     "trindex": {
       "type": "local",
-      "command": ["trindex"],
+      "command": ["trindex", "mcp"],
       "enabled": true
     }
   }
@@ -426,7 +426,7 @@ Or with Docker:
   "mcp": {
     "trindex": {
       "type": "local",
-      "command": ["docker", "compose", "-f", "/path/to/trindex/docker-compose.yml", "run", "--rm", "-i", "trindex"],
+      "command": ["docker", "compose", "-f", "/path/to/trindex/docker-compose.yml", "run", "--rm", "-i", "trindex", "mcp"],
       "enabled": true
     }
   }
@@ -438,13 +438,13 @@ Or with Docker:
 ## Claude Code MCP Config
 
 ```bash
-claude mcp add trindex --command trindex
+claude mcp add trindex --command "trindex mcp"
 ```
 
 Or if running via Docker Compose:
 
 ```bash
-claude mcp add trindex -- docker compose -f /path/to/trindex/docker-compose.yml run --rm -i trindex
+claude mcp add trindex -- docker compose -f /path/to/trindex/docker-compose.yml run --rm -i trindex mcp
 ```
 
 ---
@@ -472,7 +472,8 @@ task docker:up
 
 # Or build and run locally (requires Postgres running)
 task build
-./trindex
+./trindex server  # Run HTTP server
+./trindex mcp     # Run MCP server
 
 # Run tests
 task test

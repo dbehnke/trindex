@@ -101,3 +101,22 @@ func SkipIfNoDocker(t *testing.T) {
 func IsCI() bool {
 	return os.Getenv("CI") == "true"
 }
+
+func SetupTestDB(t *testing.T) context.Context {
+	SkipIfNoDocker(t)
+
+	ctx := context.Background()
+	container, err := NewPostgresContainer(ctx)
+	if err != nil {
+		t.Fatalf("failed to create postgres container: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if err := container.Terminate(ctx); err != nil {
+			t.Logf("failed to terminate container: %v", err)
+		}
+	})
+
+	_ = os.Setenv("DATABASE_URL", container.ConnStr)
+	return ctx
+}
