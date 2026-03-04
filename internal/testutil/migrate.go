@@ -17,6 +17,10 @@ func SetupTestDB(ctx context.Context, connStr string, embeddingDims int) (*db.DB
 		HNSWM:              16,
 		HNSWEfConstruction: 64,
 		HNSWEfSearch:       40,
+		DBMaxConns:         10,
+		DBMinConns:         2,
+		DBMaxConnLifetime:  60,
+		DBMaxConnIdleTime:  30,
 	}
 
 	database, err := db.New(cfg)

@@ -79,10 +79,10 @@ tasks:
     platforms: [darwin]
     deps: [colima:check]
     cmds:
-      - task: test:integration
-    env:
-      DOCKER_HOST: unix:///Users/dbehnke/.colima/default/docker.sock
-      TESTCONTAINERS_RYUK_DISABLED: "true"
+      - |
+        export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
+        export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="/var/run/docker.sock"
+        go test -v -tags=integration ./...
 
   clean:
     desc: Clean build artifacts

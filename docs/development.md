@@ -83,6 +83,19 @@ echo $DOCKER_HOST
 # Should output: unix:///Users/YOUR_USERNAME/.colima/default/docker.sock
 ```
 
+**Ryuk reaper on macOS**
+
+Testcontainers uses a container called "Ryuk" to automatically clean up test containers. With the proper Docker socket configuration, Ryuk works correctly on macOS with Colima and will automatically clean up test containers after each test.
+
+If you experience Ryuk-related issues, ensure both environment variables are set:
+
+```bash
+export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
+export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="/var/run/docker.sock"
+```
+
+These are automatically configured when using `task test:integration:mac`.
+
 ## Linux / Docker Desktop
 
 If you're using Linux or Docker Desktop on macOS, no special setup is needed. Docker should work out of the box.
