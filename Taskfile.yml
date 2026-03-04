@@ -80,6 +80,8 @@ tasks:
     deps: [colima:check]
     cmds:
       - task: test:integration
+    env:
+      DOCKER_HOST: unix:///Users/dbehnke/.colima/default/docker.sock
 
   clean:
     desc: Clean build artifacts
