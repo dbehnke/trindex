@@ -8,10 +8,18 @@ import (
 	"github.com/dbehnke/trindex/internal/config"
 )
 
-func TestNew(t *testing.T) {
-	cfg := &config.Config{
-		DatabaseURL: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
+func testConfig() *config.Config {
+	return &config.Config{
+		DatabaseURL:       "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
+		DBMaxConns:        10,
+		DBMinConns:        2,
+		DBMaxConnLifetime: 60,
+		DBMaxConnIdleTime: 30,
 	}
+}
+
+func TestNew(t *testing.T) {
+	cfg := testConfig()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -34,9 +42,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestDB_Migrate(t *testing.T) {
-	cfg := &config.Config{
-		DatabaseURL: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
-	}
+	cfg := testConfig()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -65,9 +71,7 @@ func TestDB_Migrate(t *testing.T) {
 }
 
 func TestDB_ExtensionExists(t *testing.T) {
-	cfg := &config.Config{
-		DatabaseURL: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
-	}
+	cfg := testConfig()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -101,9 +105,7 @@ func TestDB_ExtensionExists(t *testing.T) {
 }
 
 func TestDB_IndexesExist(t *testing.T) {
-	cfg := &config.Config{
-		DatabaseURL: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
-	}
+	cfg := testConfig()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -144,9 +146,7 @@ func TestDB_IndexesExist(t *testing.T) {
 }
 
 func TestDB_Close(t *testing.T) {
-	cfg := &config.Config{
-		DatabaseURL: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
-	}
+	cfg := testConfig()
 
 	db, err := New(cfg)
 	if err != nil {
@@ -166,9 +166,7 @@ func TestDB_Close(t *testing.T) {
 }
 
 func TestDB_Pool(t *testing.T) {
-	cfg := &config.Config{
-		DatabaseURL: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
-	}
+	cfg := testConfig()
 
 	db, err := New(cfg)
 	if err != nil {
@@ -190,9 +188,7 @@ func TestDB_Pool(t *testing.T) {
 }
 
 func TestDB_Health(t *testing.T) {
-	cfg := &config.Config{
-		DatabaseURL: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
-	}
+	cfg := testConfig()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

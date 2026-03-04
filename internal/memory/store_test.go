@@ -24,6 +24,10 @@ func setupTestStore(t *testing.T) (*Store, *db.DB, func()) {
 		DefaultNamespace:           "default",
 		DefaultTopK:                10,
 		DefaultSimilarityThreshold: 0.7,
+		DBMaxConns:                 10,
+		DBMinConns:                 2,
+		DBMaxConnLifetime:          60,
+		DBMaxConnIdleTime:          30,
 	}
 
 	database, err := db.New(cfg)
