@@ -10,19 +10,16 @@ import (
 	"github.com/dbehnke/trindex/internal/config"
 )
 
-// Client is an OpenAI-compatible embedding client
 type Client struct {
 	cfg    *config.Config
 	client *http.Client
 }
 
-// Request represents an OpenAI embedding request
 type Request struct {
 	Model string   `json:"model"`
 	Input []string `json:"input"`
 }
 
-// Response represents an OpenAI embedding response
 type Response struct {
 	Object string `json:"object"`
 	Data   []struct {
@@ -37,17 +34,20 @@ type Response struct {
 	} `json:"usage"`
 }
 
-// NewClient creates a new embedding client
 func NewClient(cfg *config.Config) *Client {
+	timeout := time.Duration(cfg.EmbedRequestTimeout) * time.Second
+	if timeout == 0 {
+	timeout = 30 * time.Second
+	}
+
 	return &Client{
 		cfg: cfg,
 		client: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: timeout,
 		},
 	}
 }
 
-// Embed generates embeddings for a single text
 func (c *Client) Embed(text string) ([]float32, error) {
 	embeddings, err := c.EmbedBatch([]string{text})
 	if err != nil {
@@ -59,12 +59,43 @@ func (c *Client) Embed(text string) ([]float32, error) {
 	return embeddings[0], nil
 }
 
-// EmbedBatch generates embeddings for multiple texts
 func (c *Client) EmbedBatch(texts []string) ([][]float32, error) {
 	if len(texts) == 0 {
 		return nil, fmt.Errorf("no texts provided")
 	}
 
+	maxRetries := c.cfg.EmbedMaxRetries
+	if maxRetries == 0 {
+		maxRetries = 3
+	}
+
+	retryDelay := time.Duration(c.cfg.EmbedRetryDelay) * time.Millisecond
+	if retryDelay == 0 {
+		retryDelay = 1000 * time.Millisecond
+	}
+
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			time.Sleep(retryDelay * time.Duration(attempt))
+		}
+
+		result, err := c.doEmbedRequest(texts)
+		if err == nil {
+			return result, nil
+		}
+
+		lastErr = err
+
+		if !isRetryableError(err) {
+			break
+		}
+	}
+
+	return nil, fmt.Errorf("failed after %d attempts: %w", maxRetries, lastErr)
+}
+
+func (c *Client) doEmbedRequest(texts []string) ([][]float32, error) {
 	req := Request{
 		Model: c.cfg.EmbedModel,
 		Input: texts,
@@ -109,7 +140,44 @@ func (c *Client) EmbedBatch(texts []string) ([][]float32, error) {
 	return result, nil
 }
 
-// ValidateDimensions checks if the embedding endpoint returns the expected dimensions
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+	retryableErrors := []string{
+		"connection refused",
+		"connection reset",
+		"timeout",
+		"temporary",
+		"too many requests",
+		"service unavailable",
+	}
+
+	for _, retryable := range retryableErrors {
+		if contains(errStr, retryable) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && findSubstring(s, substr)))
+}
+
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *Client) ValidateDimensions() error {
 	testText := "test"
 	embedding, err := c.Embed(testText)
@@ -125,12 +193,10 @@ func (c *Client) ValidateDimensions() error {
 	return nil
 }
 
-// Model returns the configured embedding model
 func (c *Client) Model() string {
 	return c.cfg.EmbedModel
 }
 
-// Dimensions returns the configured embedding dimensions
 func (c *Client) Dimensions() int {
 	return c.cfg.EmbedDimensions
 }

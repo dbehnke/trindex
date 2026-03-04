@@ -39,6 +39,9 @@ type RecallParams struct {
 	TopK       int
 	Threshold  float64
 	Filter     Filter
+	// Hybrid search weights (optional, uses config defaults if zero)
+	VectorWeight float64
+	FTSWeight    float64
 }
 
 // ListParams represents parameters for list operation

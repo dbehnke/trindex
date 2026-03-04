@@ -1,0 +1,135 @@
+version: '3'
+
+vars:
+  BINARY: trindex
+  GO_VERSION: "1.26.0"
+  NODE_VERSION: "24"
+
+tasks:
+  default:
+    desc: Build the Go binary (quick build, uses existing web assets)
+    cmds:
+      - go build -o {{.BINARY}} ./cmd/trindex
+
+  build:
+    desc: Build everything including web UI and embed assets
+    deps: [web-build]
+    cmds:
+      - go build -o {{.BINARY}} ./cmd/trindex
+
+  build:fast:
+    desc: Quick development build (no web rebuild)
+    cmds:
+      - go build -o {{.BINARY}} ./cmd/trindex
+
+  run:
+    desc: Run the application (requires Postgres)
+    deps: [build:fast]
+    cmds:
+      - ./{{.BINARY}}
+
+  dev:
+    desc: Quick development server
+    cmds:
+      - task: build:fast
+      - ./{{.BINARY}}
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test -v ./...
+
+  test:short:
+    desc: Run tests (skip integration)
+    cmds:
+      - go test -v -short ./...
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -f {{.BINARY}}
+      - go clean
+      - rm -rf web/dist
+      - rm -rf internal/web/dist
+
+  lint:
+    desc: Run linter
+    cmds:
+      - golangci-lint run
+
+  fmt:
+    desc: Format code
+    cmds:
+      - go fmt ./...
+
+  deps:go:
+    desc: Download Go dependencies
+    cmds:
+      - go mod download
+      - go mod tidy
+
+  deps:node:
+    desc: Install Node.js dependencies
+    dir: web
+    cmds:
+      - npm ci
+
+  deps:
+    desc: Download all dependencies
+    deps: [deps:go, deps:node]
+
+  web:dev:
+    desc: Run web UI dev server
+    dir: web
+    cmds:
+      - npm run dev
+
+  web:build:
+    desc: Build web UI and copy to embedded location
+    dir: web
+    cmds:
+      - npm ci
+      - npm run build
+      - cp -r dist ../internal/web/
+
+  docker:build:
+    desc: Build Docker image
+    cmds:
+      - docker build -t {{.BINARY}} .
+
+  docker:up:
+    desc: Start Docker Compose services
+    cmds:
+      - docker compose up -d
+
+  docker:down:
+    desc: Stop Docker Compose services
+    cmds:
+      - docker compose down
+
+  install-hooks:
+    desc: Install git hooks
+    cmds:
+      - ./scripts/install-hooks.sh
+
+  check:
+    desc: Run all checks before commit
+    deps: [fmt, lint, test, build]
+
+  version:check:
+    desc: Check required versions
+    cmds:
+      - |
+        GO_VER=$(go version | grep -o 'go[0-9.]*' | head -1)
+        echo "Go version: $GO_VER (required: {{.GO_VERSION}})"
+        if [ "$GO_VER" != "go{{.GO_VERSION}}" ]; then
+          echo "⚠️  Warning: Go version mismatch. Expected {{.GO_VERSION}}"
+        fi
+      - |
+        NODE_VER=$(node --version | grep -o '[0-9]*' | head -1)
+        echo "Node version: $(node --version) (minimum: v{{.NODE_VERSION}})"
+        if [ "$NODE_VER" -lt "{{.NODE_VERSION}}" ]; then
+          echo "❌ Error: Node {{.NODE_VERSION}}+ required"
+          exit 1
+        fi
+      - echo "✅ All version requirements met"

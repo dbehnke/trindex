@@ -8,11 +8,13 @@
 # Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Output of the go coverage tool
 *.out
+coverage.html
+coverage.txt
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Dependency directories
+vendor/
 
 # Go workspace file
 go.work
@@ -23,6 +25,7 @@ trindex
 # Environment files
 .env
 .env.local
+.env.*.local
 
 # IDE
 .idea/
@@ -35,9 +38,37 @@ trindex
 .DS_Store
 Thumbs.db
 
-# Build artifacts
-dist/
-build/
+# Node.js / Web UI
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Web build artifacts (generated, but dist is embedded for releases)
+web/dist/
 
 # Logs
 *.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+build/
+
+# Embedded assets (copied during build)
+internal/web/dist/
+
+# Test artifacts
+*.test-result
+junit.xml
+
+# Database dumps
+*.dump
+*.sql
+*.backup

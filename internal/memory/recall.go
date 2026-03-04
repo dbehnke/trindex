@@ -12,7 +12,16 @@ import (
 // Recall performs hybrid search combining vector similarity and full-text search
 func (s *Store) Recall(ctx context.Context, params RecallParams) ([]RecallResult, error) {
 	if params.TopK <= 0 {
-		params.TopK = 10
+		params.TopK = s.cfg.DefaultTopK
+	}
+	if params.Threshold == 0 {
+		params.Threshold = s.cfg.DefaultSimilarityThreshold
+	}
+	if params.VectorWeight == 0 {
+		params.VectorWeight = s.cfg.HybridVectorWeight
+	}
+	if params.FTSWeight == 0 {
+		params.FTSWeight = s.cfg.HybridFTSWeight
 	}
 
 	// Generate query embedding
@@ -67,8 +76,8 @@ func (s *Store) Recall(ctx context.Context, params RecallParams) ([]RecallResult
 		}
 	}
 
-	// RRF fusion
-	fusedScores := rrfFusion(vecScores, ftsScores, 60)
+	// RRF fusion with weights
+	fusedScores := rrfFusion(vecScores, ftsScores, 60, params.VectorWeight, params.FTSWeight)
 
 	// Sort by score
 	type scoredMemory struct {
@@ -177,15 +186,17 @@ func (s *Store) fullTextSearch(ctx context.Context, query string, namespaces []s
 	return results, rows.Err()
 }
 
-// rrfFusion combines scores using Reciprocal Rank Fusion
-func rrfFusion(vectorScores, ftsScores map[uuid.UUID]float64, k int) map[uuid.UUID]float64 {
+func rrfFusion(vectorScores, ftsScores map[uuid.UUID]float64, k int, vecWeight, ftsWeight float64) map[uuid.UUID]float64 {
+	if vecWeight == 0 && ftsWeight == 0 {
+		vecWeight = 0.7
+		ftsWeight = 0.3
+	}
+
 	fused := make(map[uuid.UUID]float64)
 
-	// Build rank maps
 	vecRanks := buildRanks(vectorScores)
 	ftsRanks := buildRanks(ftsScores)
 
-	// Collect all unique IDs
 	allIDs := make(map[uuid.UUID]bool)
 	for id := range vectorScores {
 		allIDs[id] = true
@@ -194,14 +205,13 @@ func rrfFusion(vectorScores, ftsScores map[uuid.UUID]float64, k int) map[uuid.UU
 		allIDs[id] = true
 	}
 
-	// Calculate RRF scores
 	for id := range allIDs {
 		score := 0.0
 		if rank, ok := vecRanks[id]; ok {
-			score += 1.0 / (float64(k) + float64(rank))
+			score += vecWeight * (1.0 / (float64(k) + float64(rank)))
 		}
 		if rank, ok := ftsRanks[id]; ok {
-			score += 1.0 / (float64(k) + float64(rank))
+			score += ftsWeight * (1.0 / (float64(k) + float64(rank)))
 		}
 		fused[id] = score
 	}

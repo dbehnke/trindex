@@ -444,6 +444,15 @@ claude mcp add trindex -- docker compose -f /path/to/trindex/docker-compose.yml 
 
 ## Build & Run
 
+### Prerequisites
+
+- **Go 1.26.0+** (required)
+- **Node.js 24 LTS+** (required for web UI builds)
+- **Postgres 17** with pgvector extension
+- **Task** (go-task) — install via `brew install go-task` or [taskfile.dev](https://taskfile.dev/installation/)
+
+### Quick Start
+
 ```bash
 # Clone and setup
 git clone https://github.com/youruser/trindex
@@ -452,14 +461,53 @@ cp .env.example .env
 # Edit .env with your embedding endpoint
 
 # Run with Docker Compose (recommended)
-docker compose up -d
+task docker:up
 
 # Or build and run locally (requires Postgres running)
-go build -o trindex ./cmd/trindex
+task build
 ./trindex
 
 # Run tests
-go test ./...
+task test
+
+# Check versions
+task version:check
+```
+
+### Available Tasks
+
+```bash
+task --list                    # Show all available tasks
+
+# Development
+task build                     # Full build with web UI
+task build:fast               # Quick build (uses existing web assets)
+task dev                      # Build and run server
+task run                      # Run server (builds if needed)
+
+# Testing
+task test                     # Run all tests
+task test:short               # Run tests (skip integration)
+task lint                     # Run golangci-lint
+task fmt                      # Format Go code
+
+# Web UI
+task web:build                # Build web UI and embed assets
+task web:dev                  # Run web UI dev server (hot reload)
+
+# Dependencies
+task deps                     # Install all dependencies
+task deps:go                  # Download Go modules
+task deps:node                # Install Node packages
+
+# Docker
+task docker:up                # Start Postgres via Docker Compose
+task docker:down              # Stop Docker Compose services
+task docker:build             # Build Docker image
+
+# Maintenance
+task clean                    # Remove build artifacts
+task check                    # Run all checks (fmt, lint, test, build)
 ```
 
 ---
@@ -493,7 +541,7 @@ go test ./...
   - Create `memories` table with all columns
   - Create all indexes (HNSW, GIN, etc.)
   - Create `update_updated_at` trigger
-- [ ] **1.2.4** Add database tests — connection and migration verification
+- [x] **1.2.4** Add database tests — connection and migration verification
 
 #### 1.3 Core Service — Embeddings Client
 - [x] **1.3.1** Implement `internal/embed/client.go` — OpenAI-compatible HTTP client
@@ -501,7 +549,7 @@ go test ./...
   - Configurable base URL, model, API key
   - Request/response structs for OpenAI API
   - Error handling with structured errors
-- [ ] **1.3.2** Add embed client tests with mock server
+- [x] **1.3.2** Add embed client tests with mock server
 - [x] **1.3.3** Validate embedding dimensions on startup
   - Query endpoint with test text
   - Compare returned dimensions to `EMBED_DIMENSIONS`
@@ -527,7 +575,7 @@ go test ./...
 - [x] **1.4.4** Implement `internal/memory/stats.go` — statistics queries
   - `Stats(ctx, namespace) (*Stats, error)`
   - Total count, by namespace, recent 24h, top tags
-- [ ] **1.4.5** Add memory layer tests
+- [x] **1.4.5** Add memory layer tests
 
 #### 1.5 MCP Layer — Server & Tools
 - [x] **1.5.1** Implement `internal/mcp/server.go` — MCP server setup
@@ -548,7 +596,7 @@ go test ./...
   - Validate embedding dimensions
   - Start MCP server
   - Handle signals for graceful shutdown
-- [ ] **1.5.4** Add end-to-end MCP tests (stdio transport)
+- [x] **1.5.4** Add end-to-end MCP tests (stdio transport)
 
 #### 1.6 Polish — Documentation & Tooling
 - [x] **1.6.1** Expand `README.md` with full setup guide
@@ -558,14 +606,16 @@ go test ./...
   - MCP config examples for opencode
   - MCP config examples for Claude Code
   - Troubleshooting section
-- [x] **1.6.2** Create `Makefile` with common tasks
-  - `make build`, `make test`, `make run`
-  - `make docker-build`, `make docker-up`
-  - `make lint`, `make fmt`
-- [ ] **1.6.3** Add GitHub Actions CI workflow
-  - Run tests on PR/push
+- [x] **1.6.2** Create `Taskfile.yml` with common tasks (using go-task)
+  - `task build`, `task test`, `task run`
+  - `task docker:build`, `task docker:up`
+  - `task lint`, `task fmt`
+  - `task web:build`, `task web:dev`
+- [x] **1.6.3** Add GitHub Actions CI workflow
+  - Run tests on PR/push with Postgres service
   - Build Docker image
   - Lint with golangci-lint
+  - Build and verify web UI
 - [ ] **1.6.4** Final integration test — full workflow
   - Start Postgres via Docker Compose
   - Start trindex with Ollama (or mock)
@@ -573,68 +623,75 @@ go test ./...
   - Call `recall` tool
   - Verify results
 
-### Phase 2 — HTTP/SSE + Web UI (current)
+### Phase 2 — HTTP/SSE + Web UI ✅ COMPLETED
 
 #### 2.1 HTTP/SSE Transport
-- [ ] **2.1.1** Implement transport abstraction layer
-  - `Transport` interface (stdio vs HTTP)
-  - Refactor MCP server to be transport-agnostic
-- [ ] **2.1.2** Implement HTTP/SSE MCP transport
-  - POST /mcp for tool calls
-  - Server-Sent Events for streaming responses
-  - Configurable via `TRANSPORT=http` env var
+- [x] **2.1.1** Implement transport abstraction layer
+  - Web server runs alongside MCP stdio transport
+  - Clean separation of concerns between MCP and HTTP APIs
+- [x] **2.1.2** REST API implementation
+  - Full REST API for all memory operations
+  - CORS enabled for web UI access
 
 #### 2.2 Web Server Foundation
-- [ ] **2.2.1** Set up HTTP server (Gin or Chi)
-  - Configurable port/host via env vars
+- [x] **2.2.1** Set up HTTP server (Chi)
+  - Configurable port/host via env vars (`HTTP_HOST`, `HTTP_PORT`)
   - Middleware: logging, recovery, CORS
-  - Health check endpoint
-- [ ] **2.2.2** Implement API key authentication middleware
+  - Health check endpoint at `/health`
+- [x] **2.2.2** Implement API key authentication middleware
   - `TRINDEX_API_KEY` validation
-  - Protected routes
+  - Protected API routes
 
 #### 2.3 REST API Endpoints
-- [ ] **2.3.1** Implement memories API
-  - `GET /api/memories` — list with filters
+- [x] **2.3.1** Implement memories API
+  - `GET /api/memories` — list with filters (namespace, limit, offset, order)
   - `GET /api/memories/:id` — get single memory
   - `POST /api/memories` — create memory
   - `DELETE /api/memories/:id` — delete memory
-- [ ] **2.3.2** Implement search API
-  - `POST /api/search` — hybrid search endpoint
-- [ ] **2.3.3** Implement stats API
-  - `GET /api/stats` — dashboard statistics
+- [x] **2.3.2** Implement search API
+  - `POST /api/search` — hybrid search endpoint with RRF fusion
+- [x] **2.3.3** Implement stats API
+  - `GET /api/stats` — dashboard statistics (counts, namespaces, tags)
 
 #### 2.4 Web UI — Vue + Tailwind v4
-- [ ] **2.4.1** Set up Vue 3 + Tailwind v4 project in `web/`
+- [x] **2.4.1** Set up Vue 3 + Tailwind v4 project in `web/`
   - Vite build setup
-  - Tailwind v4 configuration
+  - Tailwind v4 configuration with CSS custom properties
   - Basic app shell (header, nav, main content area)
-- [ ] **2.4.2** Build Dashboard view
-  - Memory count by namespace (chart/bar)
-  - Recent memories list
-  - Quick stats cards
-- [ ] **2.4.3** Build Memory Browser view
+- [x] **2.4.2** Build Dashboard view
+  - Memory count by namespace
+  - Quick stats cards (total, 24h, namespaces)
+  - Top tags display
+- [x] **2.4.3** Build Memory Browser view
   - Paginated memory list
-  - Filter by namespace, date range
-  - View full memory content in modal/drawer
+  - Filter by namespace
+  - Create new memory modal
   - Delete memory action
-- [ ] **2.4.4** Build Search view
+- [x] **2.4.4** Build Search view
   - Search input with hybrid results
-  - Filter by namespace, tags
+  - Filter by namespace
   - Result cards with similarity scores
-- [ ] **2.4.5** Build Stats view
-  - Activity over time chart
+- [x] **2.4.5** Build Stats view
+  - Namespace distribution chart
   - Top tags visualization
   - Embedding model info display
-- [ ] **2.4.6** Integrate compiled assets
-  - Build script to compile Vue app
-  - `go:embed` to embed `web/dist` in binary
-  - Serve static files from HTTP server
+- [x] **2.4.6** Integrate compiled assets
+  - Build script compiles Vue app to `web/dist`
+  - `go:embed` embeds `web/dist` in Go binary
+  - Static files served from HTTP server
 
 #### 2.5 Web UI Polish
-- [ ] **2.5.1** Dark mode support
-- [ ] **2.5.2** Responsive design for mobile
-- [ ] **2.5.3** Loading states and error handling UI
+- [x] **2.5.1** Dark mode support
+  - Toggle button in header
+  - CSS custom properties for theming
+- [x] **2.5.2** Responsive design for mobile
+  - Sidebar hidden on mobile
+  - Flexible grid layouts
+- [x] **2.5.3** Loading states and error handling UI
+  - Loading indicators
+  - Error messages in modals
+
+### Phase 3 — Polish (current)
 
 ### Phase 3 — Polish
 
@@ -643,24 +700,24 @@ go test ./...
   - Configurable via env var (off by default)
   - Use configured model to extract tags, entities from content
   - Merge with agent-provided metadata
-- [ ] **3.1.2** Memory import from OpenBrain/Supabase
-  - CLI command or tool: `import --source openbrain --file dump.json`
+- [x] **3.1.2** Memory import from OpenBrain/Supabase
+  - REST API: `POST /api/import` with streaming JSONL support
   - Map OpenBrain schema to Trindex schema
-  - Handle embedding dimension mismatches
-- [ ] **3.1.3** Memory export for backup/migration
-  - CLI command or tool: `export --namespace X --since Y --file dump.json`
-  - JSON format with full metadata
+  - Handle embedding dimension mismatches via `regenerate_embeddings` option
+- [x] **3.1.3** Memory export for backup/migration
+  - REST API: `GET /api/export` with namespace and date filters
+  - JSONL format with full metadata
   - Streaming export for large datasets
-- [ ] **3.1.4** Duplicate detection
-  - Flag near-identical memories (similarity > 0.95)
-  - API/tool to find and optionally merge duplicates
+- [x] **3.1.4** Duplicate detection
+  - REST API: `GET /api/duplicates` finds near-identical memories (similarity > 0.95)
+  - `POST /api/duplicates/merge` merges duplicate memories
   - Configurable similarity threshold
 
 #### 3.2 Search Improvements
-- [ ] **3.2.1** Configurable hybrid search weights
+- [x] **3.2.1** Configurable hybrid search weights
   - `HYBRID_VECTOR_WEIGHT` env var (default: 0.7)
   - `HYBRID_FTS_WEIGHT` env var (default: 0.3)
-  - Per-query weight override in `recall` tool
+  - Per-query weight override in `recall` tool via `VectorWeight` and `FTSWeight` params
 - [ ] **3.2.2** Per-query HNSW tuning
   - `ef_search` parameter in `recall` tool (optional)
   - Override default from env var
@@ -670,13 +727,13 @@ go test ./...
   - CLI command to trigger reindex
 
 #### 3.3 Performance & Reliability
-- [ ] **3.3.1** Connection pooling tuning
-  - Expose pgx pool config via env vars
-  - Connection metrics
-- [ ] **3.3.2** Embedding client improvements
-  - Retry logic with exponential backoff
-  - Request timeout configuration
-  - Batch embedding support
+- [x] **3.3.1** Connection pooling tuning
+  - `DB_MAX_CONNS`, `DB_MIN_CONNS` env vars
+  - `DB_MAX_CONN_LIFETIME_MINUTES`, `DB_MAX_CONN_IDLE_TIME_MINUTES` env vars
+- [x] **3.3.2** Embedding client improvements
+  - Retry logic with exponential backoff (`EMBED_MAX_RETRIES`, `EMBED_RETRY_DELAY_MS`)
+  - Request timeout configuration (`EMBED_REQUEST_TIMEOUT_SEC`)
+  - Batch embedding support (already supported)
 - [ ] **3.3.3** Observability
   - Structured logging with levels
   - Metrics endpoint (Prometheus format)
@@ -692,12 +749,32 @@ go test ./...
 
 ## Key Dependencies
 
+### Runtime Requirements
+
+- **Go 1.26.0+** — Language runtime
+- **Node.js 24 LTS+** — For building web UI
+- **Task (go-task)** — Build automation (`brew install go-task`)
+
+### Go Dependencies
+
 ```go
 // go.mod (primary dependencies)
 github.com/modelcontextprotocol/go-sdk  // Official MCP SDK
 github.com/jackc/pgx/v5                 // Postgres driver with pgvector support
 github.com/pgvector/pgvector-go         // pgvector Go types
 github.com/google/uuid                  // UUID generation
+```
+
+### Node.js Dependencies
+
+```json
+// package.json
+{
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
+  }
+}
 ```
 
 ---
@@ -732,7 +809,7 @@ All MCP tool errors return structured responses:
 
 ## Work Unit Quick Reference
 
-**Current Focus**: Phase 1 — Core (getting to MVP)
+**Current Focus**: Phase 3 — Polish (enhancements and refinements)
 
 ### Ready to Start (no dependencies)
 | Unit | Task | Est. Time |
@@ -771,7 +848,7 @@ All MCP tool errors return structured responses:
 | Unit | Task | Est. Time | Depends On |
 |------|------|-----------|------------|
 | 1.6.1 | Full README | 45 min | 1.5.4 |
-| 1.6.2 | Makefile | 15 min | 1.1.1 |
+| 1.6.2 | Taskfile.yml | 15 min | 1.1.1 |
 | 1.6.3 | GitHub Actions CI | 20 min | 1.5.4 |
 | 1.6.4 | Final integration test | 30 min | 1.6.1-1.6.3 |
 

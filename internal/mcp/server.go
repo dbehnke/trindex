@@ -23,7 +23,7 @@ type Server struct {
 
 // NewServer creates a new MCP server
 func NewServer(cfg *config.Config, database *db.DB, embedClient *embed.Client) *Server {
-	store := memory.NewStore(database, embedClient)
+	store := memory.NewStore(database, embedClient, cfg)
 
 	return &Server{
 		cfg:    cfg,

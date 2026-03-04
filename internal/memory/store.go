@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/dbehnke/trindex/internal/config"
 	"github.com/dbehnke/trindex/internal/db"
 	"github.com/dbehnke/trindex/internal/embed"
 	"github.com/google/uuid"
@@ -16,13 +17,15 @@ import (
 type Store struct {
 	db    *db.DB
 	embed *embed.Client
+	cfg   *config.Config
 }
 
 // NewStore creates a new memory store
-func NewStore(database *db.DB, embedClient *embed.Client) *Store {
+func NewStore(database *db.DB, embedClient *embed.Client, cfg *config.Config) *Store {
 	return &Store{
 		db:    database,
 		embed: embedClient,
+		cfg:   cfg,
 	}
 }
 
@@ -68,6 +71,26 @@ func (s *Store) Create(ctx context.Context, content, namespace string, metadata 
 	}
 
 	return memory, nil
+}
+
+// GetByID retrieves a single memory by ID
+func (s *Store) GetByID(ctx context.Context, id uuid.UUID) (*Memory, error) {
+	query := `
+		SELECT id, namespace, content, metadata, created_at, updated_at 
+		FROM memories 
+		WHERE id = $1
+	`
+
+	var m Memory
+	err := s.db.Pool().QueryRow(ctx, query, id).Scan(
+		&m.ID, &m.Namespace, &m.Content,
+		&m.Metadata, &m.CreatedAt, &m.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("memory not found: %w", err)
+	}
+
+	return &m, nil
 }
 
 // DeleteByID deletes a single memory by ID

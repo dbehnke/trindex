@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: trindex
+          POSTGRES_PASSWORD: trindex
+          POSTGRES_DB: trindex
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: '3.x'
+
+      - name: Check versions
+        run: task version:check
+
+      - name: Install dependencies
+        run: task deps
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable
+          EMBED_BASE_URL: http://localhost:11434/v1
+          EMBED_MODEL: nomic-embed-text
+          EMBED_API_KEY: ollama
+          EMBED_DIMENSIONS: 768
+        run: task test
+
+      - name: Build web UI
+        run: task web:build
+
+      - name: Build with embedded assets
+        run: task build
+
+      - name: Run linter
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+
+      - name: Check formatting
+        run: |
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "Please run 'task fmt' to format your code"
+            gofmt -s -l .
+            exit 1
+          fi
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: trindex:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
