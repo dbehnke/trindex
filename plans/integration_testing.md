@@ -233,15 +233,15 @@ Document:
 
 ## Acceptance Criteria
 
-- [ ] `go test -v -tags=integration ./...` passes locally (with Docker)
-- [ ] `go test -v -short ./...` passes without Docker (skips integration)
-- [ ] GitHub Actions integration workflow passes
-- [ ] All integration tests use `//go:build integration` tag
-- [ ] Ryuk cleanup confirmed working (no container leaks)
-- [ ] Tests work on macOS with Colima
-- [ ] Tests work on Linux/GitHub Actions
-- [ ] Mock Ollama provides deterministic embeddings
-- [ ] Documentation exists for local setup
+- [x] `go test -v -tags=integration ./...` passes locally (with Docker)
+- [x] `go test -v -short ./...` passes without Docker (skips integration)
+- [x] GitHub Actions integration workflow passes
+- [x] All integration tests use `//go:build integration` tag
+- [x] Ryuk cleanup confirmed working (no container leaks)
+- [x] Tests work on macOS with Colima
+- [x] Tests work on Linux/GitHub Actions
+- [x] Mock Ollama provides deterministic embeddings
+- [x] Documentation exists for local setup
 
 ---
 
