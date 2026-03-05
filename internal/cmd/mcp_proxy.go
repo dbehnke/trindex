@@ -64,7 +64,7 @@ func (p *MCPProxy) fetchTools(ctx context.Context) ([]mcp.Tool, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -108,7 +108,7 @@ func (p *MCPProxy) callTool(ctx context.Context, request *mcp.CallToolRequest) (
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
