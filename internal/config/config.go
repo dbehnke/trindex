@@ -3,105 +3,367 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Config holds all application configuration
 type Config struct {
 	// Database
-	DatabaseURL string
+	DatabaseURL string `yaml:"database_url"`
 
 	// Embedding
-	EmbedBaseURL    string
-	EmbedModel      string
-	EmbedAPIKey     string
-	EmbedDimensions int
+	EmbedBaseURL    string `yaml:"embed_base_url"`
+	EmbedModel      string `yaml:"embed_model"`
+	EmbedAPIKey     string `yaml:"embed_api_key"`
+	EmbedDimensions int    `yaml:"embed_dimensions"`
 
 	// MCP Transport
-	Transport string
+	Transport string `yaml:"transport"`
 
 	// HTTP Server (Phase 2)
-	HTTPPort   string
-	HTTPHost   string
-	HTTPAPIKey string
+	HTTPPort   string `yaml:"http_port"`
+	HTTPHost   string `yaml:"http_host"`
+	HTTPAPIKey string `yaml:"http_api_key"`
 
 	// HNSW Index Tuning
-	HNSWM              int
-	HNSWEfConstruction int
-	HNSWEfSearch       int
+	HNSWM              int `yaml:"hnsw_m"`
+	HNSWEfConstruction int `yaml:"hnsw_ef_construction"`
+	HNSWEfSearch       int `yaml:"hnsw_ef_search"`
 
 	// Recall Defaults
-	DefaultNamespace           string
-	DefaultTopK                int
-	DefaultSimilarityThreshold float64
+	DefaultNamespace           string  `yaml:"default_namespace"`
+	DefaultTopK                int     `yaml:"default_top_k"`
+	DefaultSimilarityThreshold float64 `yaml:"default_similarity_threshold"`
 
 	// Hybrid Search Weights
-	HybridVectorWeight float64
-	HybridFTSWeight    float64
+	HybridVectorWeight float64 `yaml:"hybrid_vector_weight"`
+	HybridFTSWeight    float64 `yaml:"hybrid_fts_weight"`
 
 	// Connection Pooling
-	DBMaxConns        int32
-	DBMinConns        int32
-	DBMaxConnLifetime int
-	DBMaxConnIdleTime int
+	DBMaxConns        int32 `yaml:"db_max_conns"`
+	DBMinConns        int32 `yaml:"db_min_conns"`
+	DBMaxConnLifetime int   `yaml:"db_max_conn_lifetime_minutes"`
+	DBMaxConnIdleTime int   `yaml:"db_max_conn_idle_time_minutes"`
 
 	// Embedding Client Retry
-	EmbedMaxRetries     int
-	EmbedRetryDelay     int
-	EmbedRequestTimeout int
+	EmbedMaxRetries     int `yaml:"embed_max_retries"`
+	EmbedRetryDelay     int `yaml:"embed_retry_delay_ms"`
+	EmbedRequestTimeout int `yaml:"embed_request_timeout_sec"`
 }
 
-// Load loads configuration from environment variables with defaults
-func Load() (*Config, error) {
-	cfg := &Config{
-		// Database
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable"),
+// LoadWithPath loads configuration from file and environment variables
+// Config precedence (highest to lowest):
+// 1. Environment variables
+// 2. Config file specified by path
+// 3. Config file in standard locations
+// 4. Default values
+func LoadWithPath(configPath string) (*Config, error) {
+	cfg := defaultConfig()
 
-		// Embedding
-		EmbedBaseURL:    getEnv("EMBED_BASE_URL", "http://localhost:11434/v1"),
-		EmbedModel:      getEnv("EMBED_MODEL", "nomic-embed-text"),
-		EmbedAPIKey:     getEnv("EMBED_API_KEY", "ollama"),
-		EmbedDimensions: getEnvAsInt("EMBED_DIMENSIONS", 768),
-
-		// MCP Transport
-		Transport: getEnv("TRANSPORT", "stdio"),
-
-		// HTTP Server
-		HTTPPort:   getEnv("HTTP_PORT", "8080"),
-		HTTPHost:   getEnv("HTTP_HOST", "0.0.0.0"),
-		HTTPAPIKey: getEnv("TRINDEX_API_KEY", ""),
-
-		// HNSW Index Tuning
-		HNSWM:              getEnvAsInt("HNSW_M", 16),
-		HNSWEfConstruction: getEnvAsInt("HNSW_EF_CONSTRUCTION", 64),
-		HNSWEfSearch:       getEnvAsInt("HNSW_EF_SEARCH", 40),
-
-		// Recall Defaults
-		DefaultNamespace:           getEnv("DEFAULT_NAMESPACE", "default"),
-		DefaultTopK:                getEnvAsInt("DEFAULT_TOP_K", 10),
-		DefaultSimilarityThreshold: getEnvAsFloat("DEFAULT_SIMILARITY_THRESHOLD", 0.7),
-
-		// Hybrid Search Weights
-		HybridVectorWeight: getEnvAsFloat("HYBRID_VECTOR_WEIGHT", 0.7),
-		HybridFTSWeight:    getEnvAsFloat("HYBRID_FTS_WEIGHT", 0.3),
-
-		// Connection Pooling
-		DBMaxConns:        int32(getEnvAsInt("DB_MAX_CONNS", 100)),
-		DBMinConns:        int32(getEnvAsInt("DB_MIN_CONNS", 10)),
-		DBMaxConnLifetime: getEnvAsInt("DB_MAX_CONN_LIFETIME_MINUTES", 60),
-		DBMaxConnIdleTime: getEnvAsInt("DB_MAX_CONN_IDLE_TIME_MINUTES", 30),
-
-		// Embedding Client Retry
-		EmbedMaxRetries:     getEnvAsInt("EMBED_MAX_RETRIES", 3),
-		EmbedRetryDelay:     getEnvAsInt("EMBED_RETRY_DELAY_MS", 1000),
-		EmbedRequestTimeout: getEnvAsInt("EMBED_REQUEST_TIMEOUT_SEC", 30),
+	// Try to load from config file
+	if configPath != "" {
+		// Explicit config path provided
+		if err := loadFromFile(cfg, configPath); err != nil {
+			return nil, fmt.Errorf("failed to load config from %s: %w", configPath, err)
+		}
+	} else {
+		// Try standard config locations
+		if path := findConfigFile(); path != "" {
+			if err := loadFromFile(cfg, path); err != nil {
+				// Log but don't fail - env vars might be sufficient
+				fmt.Fprintf(os.Stderr, "Warning: failed to load config from %s: %v\n", path, err)
+			}
+		}
 	}
+
+	// Environment variables override config file
+	cfg.loadFromEnv()
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 
 	return cfg, nil
+}
+
+// Load loads configuration using the standard config locations
+func Load() (*Config, error) {
+	return LoadWithPath("")
+}
+
+// defaultConfig returns a Config with default values
+func defaultConfig() *Config {
+	return &Config{
+		// Database
+		DatabaseURL: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable",
+
+		// Embedding
+		EmbedBaseURL:    "http://localhost:11434/v1",
+		EmbedModel:      "nomic-embed-text",
+		EmbedAPIKey:     "ollama",
+		EmbedDimensions: 768,
+
+		// MCP Transport
+		Transport: "stdio",
+
+		// HTTP Server
+		HTTPPort:   "8080",
+		HTTPHost:   "0.0.0.0",
+		HTTPAPIKey: "",
+
+		// HNSW Index Tuning
+		HNSWM:              16,
+		HNSWEfConstruction: 64,
+		HNSWEfSearch:       40,
+
+		// Recall Defaults
+		DefaultNamespace:           "default",
+		DefaultTopK:                10,
+		DefaultSimilarityThreshold: 0.7,
+
+		// Hybrid Search Weights
+		HybridVectorWeight: 0.7,
+		HybridFTSWeight:    0.3,
+
+		// Connection Pooling
+		DBMaxConns:        100,
+		DBMinConns:        10,
+		DBMaxConnLifetime: 60,
+		DBMaxConnIdleTime: 30,
+
+		// Embedding Client Retry
+		EmbedMaxRetries:     3,
+		EmbedRetryDelay:     1000,
+		EmbedRequestTimeout: 30,
+	}
+}
+
+// loadFromFile loads configuration from a YAML file
+func loadFromFile(cfg *Config, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal(data, cfg)
+}
+
+// loadFromEnv overrides config values from environment variables
+func (c *Config) loadFromEnv() {
+	// Database
+	if v := os.Getenv("DATABASE_URL"); v != "" {
+		c.DatabaseURL = v
+	}
+
+	// Embedding
+	if v := os.Getenv("EMBED_BASE_URL"); v != "" {
+		c.EmbedBaseURL = v
+	}
+	if v := os.Getenv("EMBED_MODEL"); v != "" {
+		c.EmbedModel = v
+	}
+	if v := os.Getenv("EMBED_API_KEY"); v != "" {
+		c.EmbedAPIKey = v
+	}
+	if v := os.Getenv("EMBED_DIMENSIONS"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.EmbedDimensions = val
+		}
+	}
+
+	// MCP Transport
+	if v := os.Getenv("TRANSPORT"); v != "" {
+		c.Transport = v
+	}
+
+	// HTTP Server
+	if v := os.Getenv("HTTP_PORT"); v != "" {
+		c.HTTPPort = v
+	}
+	if v := os.Getenv("HTTP_HOST"); v != "" {
+		c.HTTPHost = v
+	}
+	if v := os.Getenv("TRINDEX_API_KEY"); v != "" {
+		c.HTTPAPIKey = v
+	}
+
+	// HNSW Index Tuning
+	if v := os.Getenv("HNSW_M"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.HNSWM = val
+		}
+	}
+	if v := os.Getenv("HNSW_EF_CONSTRUCTION"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.HNSWEfConstruction = val
+		}
+	}
+	if v := os.Getenv("HNSW_EF_SEARCH"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.HNSWEfSearch = val
+		}
+	}
+
+	// Recall Defaults
+	if v := os.Getenv("DEFAULT_NAMESPACE"); v != "" {
+		c.DefaultNamespace = v
+	}
+	if v := os.Getenv("DEFAULT_TOP_K"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.DefaultTopK = val
+		}
+	}
+	if v := os.Getenv("DEFAULT_SIMILARITY_THRESHOLD"); v != "" {
+		if val, err := strconv.ParseFloat(v, 64); err == nil {
+			c.DefaultSimilarityThreshold = val
+		}
+	}
+
+	// Hybrid Search Weights
+	if v := os.Getenv("HYBRID_VECTOR_WEIGHT"); v != "" {
+		if val, err := strconv.ParseFloat(v, 64); err == nil {
+			c.HybridVectorWeight = val
+		}
+	}
+	if v := os.Getenv("HYBRID_FTS_WEIGHT"); v != "" {
+		if val, err := strconv.ParseFloat(v, 64); err == nil {
+			c.HybridFTSWeight = val
+		}
+	}
+
+	// Connection Pooling
+	if v := os.Getenv("DB_MAX_CONNS"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.DBMaxConns = int32(val)
+		}
+	}
+	if v := os.Getenv("DB_MIN_CONNS"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.DBMinConns = int32(val)
+		}
+	}
+	if v := os.Getenv("DB_MAX_CONN_LIFETIME_MINUTES"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.DBMaxConnLifetime = val
+		}
+	}
+	if v := os.Getenv("DB_MAX_CONN_IDLE_TIME_MINUTES"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.DBMaxConnIdleTime = val
+		}
+	}
+
+	// Embedding Client Retry
+	if v := os.Getenv("EMBED_MAX_RETRIES"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.EmbedMaxRetries = val
+		}
+	}
+	if v := os.Getenv("EMBED_RETRY_DELAY_MS"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.EmbedRetryDelay = val
+		}
+	}
+	if v := os.Getenv("EMBED_REQUEST_TIMEOUT_SEC"); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			c.EmbedRequestTimeout = val
+		}
+	}
+}
+
+// findConfigFile searches for config file in standard locations
+// Returns empty string if no config file is found
+func findConfigFile() string {
+	// Check TRINDEX_CONFIG env var first
+	if path := os.Getenv("TRINDEX_CONFIG"); path != "" {
+		if fileExists(path) {
+			return path
+		}
+	}
+
+	// Get user config directory (XDG Base Directory spec)
+	configDir := getUserConfigDir()
+
+	// Search paths in order of precedence
+	searchPaths := []string{
+		// Current directory
+		"trindex.yaml",
+		".trindex.yaml",
+		// XDG config directory
+		filepath.Join(configDir, "trindex", "config.yaml"),
+		filepath.Join(configDir, "trindex", "trindex.yaml"),
+		// Legacy locations
+		filepath.Join(getHomeDir(), ".trindex.yaml"),
+		filepath.Join(getHomeDir(), ".trindex", "config.yaml"),
+	}
+
+	// System-wide config (Unix only)
+	if runtime.GOOS != "windows" {
+		searchPaths = append(searchPaths,
+			"/etc/trindex/config.yaml",
+			"/etc/trindex.yaml",
+		)
+	}
+
+	for _, path := range searchPaths {
+		if fileExists(path) {
+			return path
+		}
+	}
+
+	return ""
+}
+
+// getUserConfigDir returns the user's config directory following XDG spec
+func getUserConfigDir() string {
+	// Check XDG_CONFIG_HOME
+	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+		return xdgConfig
+	}
+
+	// Fallback to platform-specific defaults
+	home := getHomeDir()
+
+	switch runtime.GOOS {
+	case "darwin":
+		// macOS: ~/Library/Application Support
+		return filepath.Join(home, "Library", "Application Support")
+	case "windows":
+		// Windows: %APPDATA% or %LOCALAPPDATA%
+		if appData := os.Getenv("APPDATA"); appData != "" {
+			return appData
+		}
+		return filepath.Join(home, "AppData", "Roaming")
+	default:
+		// Linux and other Unix: ~/.config
+		return filepath.Join(home, ".config")
+	}
+}
+
+// getHomeDir returns the user's home directory
+func getHomeDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		// Fallback
+		if runtime.GOOS == "windows" {
+			return os.Getenv("USERPROFILE")
+		}
+		return os.Getenv("HOME")
+	}
+	return home
+}
+
+// fileExists checks if a file exists and is readable
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
 }
 
 // Validate checks that all configuration is valid
@@ -157,34 +419,14 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// Helper functions
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
+// ConfigPath returns the path to the currently used config file
+// or empty string if using defaults
+func ConfigPath() string {
+	return findConfigFile()
 }
 
-func getEnvAsInt(key string, defaultValue int) int {
-	valueStr := os.Getenv(key)
-	if valueStr == "" {
-		return defaultValue
-	}
-	value, err := strconv.Atoi(valueStr)
-	if err != nil {
-		return defaultValue
-	}
-	return value
-}
-
-func getEnvAsFloat(key string, defaultValue float64) float64 {
-	valueStr := os.Getenv(key)
-	if valueStr == "" {
-		return defaultValue
-	}
-	value, err := strconv.ParseFloat(valueStr, 64)
-	if err != nil {
-		return defaultValue
-	}
-	return value
+// DefaultConfigPath returns the recommended config file path
+// for creating a new config file
+func DefaultConfigPath() string {
+	return filepath.Join(getUserConfigDir(), "trindex", "config.yaml")
 }

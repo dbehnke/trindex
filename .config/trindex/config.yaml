@@ -1,0 +1,56 @@
+# Trindex Configuration File
+# Place this file at one of the following locations:
+#   - ./trindex.yaml (current directory)
+#   - $XDG_CONFIG_HOME/trindex/config.yaml (Linux/macOS XDG)
+#   - ~/.config/trindex/config.yaml (Linux/macOS)
+#   - ~/Library/Application Support/trindex/config.yaml (macOS)
+#   - ~/.trindex.yaml (legacy)
+#   - /etc/trindex/config.yaml (system-wide)
+#
+# Or specify with --config flag or TRINDEX_CONFIG env var
+
+# Database connection
+# Format: postgres://user:password@host:port/database?sslmode=disable
+database_url: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable"
+
+# Embedding configuration
+embed_base_url: "http://localhost:11434/v1"  # Ollama default
+embed_model: "nomic-embed-text"
+embed_api_key: "ollama"
+embed_dimensions: 768
+
+# MCP Transport (stdio or http)
+transport: "stdio"
+
+# HTTP Server (Phase 2)
+http_host: "0.0.0.0"
+http_port: "8080"
+http_api_key: ""  # Set for API authentication
+
+# HNSW Index Tuning
+# M: Number of connections per layer (higher = more accurate, more memory)
+hnsw_m: 16
+# ef_construction: Size of dynamic candidate list during index building
+hnsw_ef_construction: 64
+# ef_search: Size of dynamic candidate list during search
+hnsw_ef_search: 40
+
+# Recall Defaults
+default_namespace: "default"
+default_top_k: 10
+default_similarity_threshold: 0.7
+
+# Hybrid Search Weights (must sum to 1.0)
+hybrid_vector_weight: 0.7
+hybrid_fts_weight: 0.3
+
+# Connection Pooling
+db_max_conns: 100
+db_min_conns: 10
+db_max_conn_lifetime_minutes: 60
+db_max_conn_idle_time_minutes: 30
+
+# Embedding Client Retry
+embed_max_retries: 3
+embed_retry_delay_ms: 1000
+embed_request_timeout_sec: 30

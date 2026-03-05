@@ -22,12 +22,74 @@ These flags are available for all commands:
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--config PATH` | Config file path | - |
+| `--config PATH` | Config file path | See [Configuration Files](#configuration-files) |
 | `--env-file PATH` | .env file path | - |
 | `--log-level LEVEL` | Log level (debug\|info\|warn\|error) | info |
 | `--json` | Output as JSON | false |
 | `--api-key KEY` | API key for REST commands | TRINDEX_API_KEY env |
 | `--api-url URL` | Trindex HTTP API URL | http://localhost:8080 |
+
+## Configuration Files
+
+Trindex supports configuration via YAML files in standard locations (following [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)):
+
+### Config File Locations (in order of precedence)
+
+1. **Explicit path** (highest priority)
+   - `--config /path/to/config.yaml` flag
+   - `TRINDEX_CONFIG` environment variable
+
+2. **Current directory**
+   - `./trindex.yaml`
+   - `./.trindex.yaml`
+
+3. **User config directory** (XDG)
+   - Linux: `$XDG_CONFIG_HOME/trindex/config.yaml` or `~/.config/trindex/config.yaml`
+   - macOS: `~/Library/Application Support/trindex/config.yaml`
+   - Windows: `%APPDATA%\trindex\config.yaml`
+
+4. **Legacy locations**
+   - `~/.trindex.yaml`
+   - `~/.trindex/config.yaml`
+
+5. **System-wide** (Unix only)
+   - `/etc/trindex/config.yaml`
+   - `/etc/trindex.yaml`
+
+### Example Config File
+
+Create a file at `~/.config/trindex/config.yaml`:
+
+```yaml
+# Database connection
+database_url: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable"
+
+# Embedding configuration
+embed_base_url: "http://localhost:11434/v1"
+embed_model: "nomic-embed-text"
+embed_api_key: "ollama"
+embed_dimensions: 768
+
+# HTTP Server settings
+http_host: "0.0.0.0"
+http_port: "8080"
+
+# Default search settings
+default_namespace: "default"
+default_top_k: 10
+default_similarity_threshold: 0.7
+```
+
+### Configuration Precedence
+
+Configuration values are loaded in this order (later overrides earlier):
+
+1. Default values
+2. Config file (from standard locations or `--config`)
+3. Environment variables
+4. Command-line flags
+
+This means environment variables override config file settings, allowing you to use config files for defaults and environment variables for deployment-specific overrides.
 
 ## Commands
 
