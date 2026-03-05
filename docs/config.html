@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration - Trindex Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1b26;
+            color: #a9b1d6;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            background: #24283b;
+            border-bottom: 2px solid #414868;
+            padding: 1.5rem 0;
+            margin-bottom: 2rem;
+        }
+        
+        .header-content {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h1 {
+            color: #7aa2f7;
+            font-size: 1.5rem;
+        }
+        
+        .back-link {
+            color: #bb9af7;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        h2 {
+            color: #7aa2f7;
+            font-size: 1.8rem;
+            margin: 2rem 0 1rem;
+            border-bottom: 1px solid #414868;
+            padding-bottom: 0.5rem;
+        }
+        
+        h3 {
+            color: #bb9af7;
+            font-size: 1.3rem;
+            margin: 1.5rem 0 0.8rem;
+        }
+        
+        p {
+            margin-bottom: 1rem;
+        }
+        
+        code {
+            background: #24283b;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: 'Fira Code', Consolas, monospace;
+            font-size: 0.9em;
+            color: #9ece6a;
+        }
+        
+        pre {
+            background: #24283b;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid #414868;
+        }
+        
+        pre code {
+            background: transparent;
+            padding: 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: #24283b;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        th {
+            background: #1a1b26;
+            color: #7aa2f7;
+            padding: 0.8rem;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 0.8rem;
+            border-bottom: 1px solid #414868;
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .priority {
+            display: inline-block;
+            background: #bb9af7;
+            color: #1a1b26;
+            padding: 0.2em 0.6em;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        
+        .path-list {
+            background: #24283b;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .path-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #414868;
+        }
+        
+        .path-item:last-child {
+            border-bottom: none;
+        }
+        
+        .os-tag {
+            display: inline-block;
+            background: #565f89;
+            color: #c0caf5;
+            padding: 0.1em 0.4em;
+            border-radius: 4px;
+            font-size: 0.75em;
+            margin-left: 0.5rem;
+        }
+        
+        ul, ol {
+            margin: 1rem 0;
+            padding-left: 2rem;
+        }
+        
+        li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .highlight-box {
+            background: #24283b;
+            border-left: 4px solid #bb9af7;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 3rem 0;
+            border-top: 1px solid #414868;
+            margin-top: 4rem;
+            color: #565f89;
+        }
+        
+        a {
+            color: #7aa2f7;
+        }
+        
+        a:hover {
+            color: #bb9af7;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>⚙️ Configuration</h1>
+            <a href="index.html" class="back-link">← Back to Home</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <h2>Configuration Files</h2>
+        
+        <p>Trindex supports configuration via YAML files in standard locations (following <a href="https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html" target="_blank">XDG Base Directory Specification</a>).</p>
+
+        <h3>Config File Locations (in order of precedence)</h3>
+
+        <div class="path-list">
+            <div class="path-item">
+                <span class="priority">1</span>
+                <strong>Explicit path</strong> (highest priority)
+                <ul>
+                    <li><code>--config /path/to/config.yaml</code> flag</li>
+                    <li><code>TRINDEX_CONFIG</code> environment variable</li>
+                </ul>
+            </div>
+            
+            <div class="path-item">
+                <span class="priority">2</span>
+                <strong>Current directory</strong>
+                <ul>
+                    <li><code>./trindex.yaml</code></li>
+                    <li><code>./.trindex.yaml</code></li>
+                </ul>
+            </div>
+            
+            <div class="path-item">
+                <span class="priority">3</span>
+                <strong>User config directory</strong> (XDG)
+                <ul>
+                    <li><code>~/.config/trindex/config.yaml</code> <span class="os-tag">Linux</span></li>
+                    <li><code>~/Library/Application Support/trindex/config.yaml</code> <span class="os-tag">macOS</span></li>
+                    <li><code>%APPDATA%\trindex\config.yaml</code> <span class="os-tag">Windows</span></li>
+                </ul>
+            </div>
+            
+            <div class="path-item">
+                <span class="priority">4</span>
+                <strong>Legacy locations</strong>
+                <ul>
+                    <li><code>~/.trindex.yaml</code></li>
+                    <li><code>~/.trindex/config.yaml</code></li>
+                </ul>
+            </div>
+            
+            <div class="path-item">
+                <span class="priority">5</span>
+                <strong>System-wide</strong> (Unix only)
+                <ul>
+                    <li><code>/etc/trindex/config.yaml</code></li>
+                    <li><code>/etc/trindex.yaml</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>Quick Setup</h3>
+
+        <p>Create your config file:</p>
+
+        <pre><code># Linux/macOS
+mkdir -p ~/.config/trindex
+cat > ~/.config/trindex/config.yaml << 'EOF'
+database_url: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable"
+embed_base_url: "http://localhost:11434/v1"
+embed_model: "nomic-embed-text"
+embed_api_key: "ollama"
+embed_dimensions: 768
+EOF
+
+# Verify it works
+trindex doctor</code></pre>
+
+        <h2>Configuration Options</h2>
+
+        <h3>Database Settings</h3>
+        <table>
+            <tr>
+                <th>Option</th>
+                <th>Default</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><code>database_url</code></td>
+                <td><code>postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable</code></td>
+                <td>PostgreSQL connection string</td>
+            </tr>
+            <tr>
+                <td><code>db_max_conns</code></td>
+                <td>100</td>
+                <td>Maximum database connections</td>
+            </tr>
+            <tr>
+                <td><code>db_min_conns</code></td>
+                <td>10</td>
+                <td>Minimum database connections</td>
+            </tr>
+            <tr>
+                <td><code>db_max_conn_lifetime_minutes</code></td>
+                <td>60</td>
+                <td>Maximum connection lifetime (minutes)</td>
+            </tr>
+            <tr>
+                <td><code>db_max_conn_idle_time_minutes</code></td>
+                <td>30</td>
+                <td>Maximum idle time before closing (minutes)</td>
+            </tr>
+        </table>
+
+        <h3>Embedding Settings</h3>
+        <table>
+            <tr>
+                <th>Option</th>
+                <th>Default</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><code>embed_base_url</code></td>
+                <td><code>http://localhost:11434/v1</code></td>
+                <td>Embedding API base URL (Ollama default)</td>
+            </tr>
+            <tr>
+                <td><code>embed_model</code></td>
+                <td>nomic-embed-text</td>
+                <td>Embedding model name</td>
+            </tr>
+            <tr>
+                <td><code>embed_api_key</code></td>
+                <td>ollama</td>
+                <td>API key for embedding service</td>
+            </tr>
+            <tr>
+                <td><code>embed_dimensions</code></td>
+                <td>768</td>
+                <td>Vector dimensions (must match model)</td>
+            </tr>
+            <tr>
+                <td><code>embed_max_retries</code></td>
+                <td>3</td>
+                <td>Maximum retry attempts</td>
+            </tr>
+            <tr>
+                <td><code>embed_retry_delay_ms</code></td>
+                <td>1000</td>
+                <td>Delay between retries (milliseconds)</td>
+            </tr>
+            <tr>
+                <td><code>embed_request_timeout_sec</code></td>
+                <td>30</td>
+                <td>Request timeout (seconds)</td>
+            </tr>
+        </table>
+
+        <h3>HTTP Server Settings</h3>
+        <table>
+            <tr>
+                <th>Option</th>
+                <th>Default</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><code>http_host</code></td>
+                <td>0.0.0.0</td>
+                <td>HTTP server bind address</td>
+            </tr>
+            <tr>
+                <td><code>http_port</code></td>
+                <td>8080</td>
+                <td>HTTP server port</td>
+            </tr>
+            <tr>
+                <td><code>http_api_key</code></td>
+                <td>(empty)</td>
+                <td>API key for authentication (optional)</td>
+            </tr>
+        </table>
+
+        <h3>Search Settings</h3>
+        <table>
+            <tr>
+                <th>Option</th>
+                <th>Default</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><code>default_namespace</code></td>
+                <td>default</td>
+                <td>Default namespace for memories</td>
+            </tr>
+            <tr>
+                <td><code>default_top_k</code></td>
+                <td>10</td>
+                <td>Default number of search results</td>
+            </tr>
+            <tr>
+                <td><code>default_similarity_threshold</code></td>
+                <td>0.7</td>
+                <td>Minimum similarity score (0.0-1.0)</td>
+            </tr>
+            <tr>
+                <td><code>hybrid_vector_weight</code></td>
+                <td>0.7</td>
+                <td>Weight for vector search (0.0-1.0)</td>
+            </tr>
+            <tr>
+                <td><code>hybrid_fts_weight</code></td>
+                <td>0.3</td>
+                <td>Weight for full-text search (0.0-1.0)</td>
+            </tr>
+        </table>
+
+        <h3>HNSW Index Settings</h3>
+        <table>
+            <tr>
+                <th>Option</th>
+                <th>Default</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><code>hnsw_m</code></td>
+                <td>16</td>
+                <td>Number of connections per layer (higher = more accurate, more memory)</td>
+            </tr>
+            <tr>
+                <td><code>hnsw_ef_construction</code></td>
+                <td>64</td>
+                <td>Candidate list size during index building</td>
+            </tr>
+            <tr>
+                <td><code>hnsw_ef_search</code></td>
+                <td>40</td>
+                <td>Candidate list size during search</td>
+            </tr>
+        </table>
+
+        <h2>Example Configuration</h2>
+
+        <pre><code># Trindex Configuration File
+# Place at: ~/.config/trindex/config.yaml
+
+# Database connection
+database_url: "postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable"
+
+# Embedding configuration (Ollama)
+embed_base_url: "http://localhost:11434/v1"
+embed_model: "nomic-embed-text"
+embed_api_key: "ollama"
+embed_dimensions: 768
+
+# For OpenAI instead:
+# embed_base_url: "https://api.openai.com/v1"
+# embed_model: "text-embedding-3-small"
+# embed_api_key: "sk-your-key-here"
+# embed_dimensions: 1536
+
+# HTTP Server settings
+http_host: "0.0.0.0"
+http_port: "8080"
+http_api_key: ""  # Set to enable API authentication
+
+# Default search settings
+default_namespace: "default"
+default_top_k: 10
+default_similarity_threshold: 0.7
+
+# Hybrid search weights (should sum to 1.0)
+hybrid_vector_weight: 0.7
+hybrid_fts_weight: 0.3
+
+# HNSW index tuning
+hnsw_m: 16
+hnsw_ef_construction: 64
+hnsw_ef_search: 40
+
+# Connection pooling
+db_max_conns: 100
+db_min_conns: 10
+db_max_conn_lifetime_minutes: 60
+db_max_conn_idle_time_minutes: 30
+
+# Retry configuration
+embed_max_retries: 3
+embed_retry_delay_ms: 1000
+embed_request_timeout_sec: 30</code></pre>
+
+        <h2>Configuration Precedence</h2>
+
+        <p>Configuration values are loaded in this order (later overrides earlier):</p>
+
+        <ol>
+            <li><strong>Default values</strong> - Built-in defaults</li>
+            <li><strong>Config file</strong> - From standard locations or <code>--config</code> flag</li>
+            <li><strong>Environment variables</strong> - Override config file</li>
+            <li><strong>Command-line flags</strong> - Highest priority</li>
+        </ol>
+
+        <div class="highlight-box">
+            <p><strong>Tip:</strong> Use config files for defaults and environment variables for deployment-specific overrides. This makes it easy to have different settings for development, staging, and production.</p>
+        </div>
+
+        <h2>Environment Variables</h2>
+
+        <p>All configuration options can be set via environment variables using UPPER_CASE with underscores:</p>
+
+        <pre><code>export DATABASE_URL="postgres://user:pass@host/db"
+export EMBED_MODEL="nomic-embed-text"
+export DEFAULT_TOP_K="20"
+export HTTP_PORT="3000"
+
+# Or run directly
+DATABASE_URL="postgres://..." EMBED_MODEL="..." trindex server</code></pre>
+
+        <footer>
+            <p>Trindex - Persistent Semantic Memory for AI Agents</p>
+            <p><a href="index.html">Home</a> · <a href="cli.html">CLI Reference</a> · <a href="slides.html">Presentation</a> · <a href="https://github.com/dbehnke/trindex" target="_blank">GitHub</a></p>
+        </footer>
+
+    </div>
+</body>
+</html>

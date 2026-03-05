@@ -25,13 +25,13 @@ func TestDefaultConfig(t *testing.T) {
 
 func TestConfigFromEnv(t *testing.T) {
 	// Set test env vars
-	os.Setenv("DATABASE_URL", "postgres://test:test@localhost:5432/test")
-	os.Setenv("EMBED_MODEL", "test-model")
-	os.Setenv("DEFAULT_TOP_K", "20")
+	_ = os.Setenv("DATABASE_URL", "postgres://test:test@localhost:5432/test")
+	_ = os.Setenv("EMBED_MODEL", "test-model")
+	_ = os.Setenv("DEFAULT_TOP_K", "20")
 	defer func() {
-		os.Unsetenv("DATABASE_URL")
-		os.Unsetenv("EMBED_MODEL")
-		os.Unsetenv("DEFAULT_TOP_K")
+		_ = os.Unsetenv("DATABASE_URL")
+		_ = os.Unsetenv("EMBED_MODEL")
+		_ = os.Unsetenv("DEFAULT_TOP_K")
 	}()
 
 	cfg := defaultConfig()
