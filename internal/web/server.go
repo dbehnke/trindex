@@ -108,9 +108,9 @@ func (s *Server) setupRouter() {
 				return
 			}
 
-			filepath := path.Clean(r.URL.Path)
-			if filepath == "/" {
-				filepath = "/index.html"
+			filepath := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+			if filepath == "" {
+				filepath = "index.html"
 			}
 
 			_, err := staticFS.Open(filepath)
