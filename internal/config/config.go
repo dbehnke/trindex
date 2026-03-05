@@ -111,7 +111,7 @@ func defaultConfig() *Config {
 		Transport: "stdio",
 
 		// HTTP Server
-		HTTPPort:   "8080",
+		HTTPPort:   "9636",
 		HTTPHost:   "0.0.0.0",
 		HTTPAPIKey: "",
 

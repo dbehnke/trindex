@@ -89,9 +89,11 @@ Third, namespace organization. You can create isolated memory spaces - one for '
 
 At the top, you have MCP clients - Claude Code, opencode, Cursor, or any custom orchestrator. They communicate with Trindex via stdio - the MCP standard.
 
-Trindex itself has two modes: 'mcp' mode for agent integration, and 'server' mode for HTTP API and Web UI. This separation is key - you can run just the HTTP server for centralized deployments, or just MCP for local agent usage.
+In the current architecture, 'trindex mcp' is a thin MCP proxy client. It speaks stdio to the agent, then forwards tool calls over HTTP to 'trindex server'.
 
-The REST API provides CRUD operations for memories, search endpoints, stats, and import/export functionality.
+The server runs the full stack on port 9636: REST API, MCP-over-HTTP endpoints, Web UI, plus database and embedding integration.
+
+The MCP proxy discovers tools from '/api/mcp/tools' and executes calls through '/api/mcp/call'. The REST API still provides CRUD operations, search, stats, and import/export.
 
 Underneath, everything stores in PostgreSQL with the pgvector extension. This gives you ACID transactions, backups, replication - all the production database features you need.
 
@@ -99,8 +101,8 @@ The embedding service is pluggable - Ollama for local development, OpenAI for pr
 
 **Key points:**
 - MCP clients talk stdio
-- Two modes: mcp and server
-- REST API for programmatic access
+- `mcp` is a proxy client, `server` is the full backend
+- MCP-over-HTTP + REST API on server
 - PostgreSQL + pgvector backend
 - Pluggable embeddings
 
@@ -121,7 +123,7 @@ The new CLI uses explicit subcommands:
 - 'search' lets you search from the command line
 - 'export/import' for backups
 
-This enables new workflows. You can run 'trindex doctor' to verify your setup before starting services. You can script memory operations. You can run the HTTP server on a central instance while agents connect via MCP proxy mode."
+This enables new workflows. You can run 'trindex doctor' to verify your setup before starting services. You can script memory operations. You can run the HTTP server on a central instance while agents connect through the MCP proxy client."
 
 **Key points:**
 - Old: monolithic, everything at once
@@ -139,7 +141,7 @@ This enables new workflows. You can run 'trindex doctor' to verify your setup be
 
 First, diagnostics. Run './trindex doctor' and it checks your configuration, tests database connectivity, and validates the embedding endpoint. You get clear pass/fail indicators with helpful error messages.
 
-For server management, './trindex server --port 3000' starts just the HTTP server. './trindex mcp' starts just the MCP server.
+For server management, './trindex server --port 9636' starts just the HTTP server. './trindex mcp' starts the MCP proxy client.
 
 For memory operations: './trindex memories list --namespace work --json' lists memories with JSON output. './trindex memories create' with content, namespace, and metadata flags creates a memory.
 
@@ -245,7 +247,9 @@ Clone the repo, copy .env.example to .env, and edit it with your embedding endpo
 
 Then either run with Docker Compose - that's the easiest way - or build locally with Go.
 
-The 'trindex doctor' command will verify your setup before you start services."
+The 'trindex doctor' command will verify your setup before you start services.
+
+For agent integration, point your MCP client to 'trindex mcp'. It proxies to 'http://localhost:9636' by default, or whatever you set in TRINDEX_URL."
 
 **Key points:**
 - Clone and configure

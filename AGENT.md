@@ -62,7 +62,7 @@ DEFAULT_TOP_K=10
 DEFAULT_SIMILARITY_THRESHOLD=0.7
 
 # Phase 2 (HTTP/SSE + Web UI)
-# HTTP_PORT=8080
+# HTTP_PORT=9636
 # HTTP_HOST=0.0.0.0
 ```
 
@@ -346,7 +346,21 @@ personal        — personal context and preferences
 
 ## Docker Compose
 
+**Prerequisite:** Ollama must be installed and running on the host (not in Docker) for GPU acceleration.
+
+```bash
+# macOS
+brew install ollama && ollama serve
+ollama pull nomic-embed-text
+
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh && ollama serve
+ollama pull nomic-embed-text
+```
+
 ```yaml
+version: "3.8"
+
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -364,23 +378,35 @@ services:
       timeout: 5s
       retries: 5
 
-  trindex:
+  trindex-server:
     build: .
+    ports:
+      - "9636:9636"
+    environment:
+      HTTP_HOST: "0.0.0.0"
+      HTTP_PORT: "9636"
+      TRINDEX_API_KEY: ${TRINDEX_API_KEY:-change-me-in-production}
+      DATABASE_URL: postgres://trindex:trindex@postgres:5432/trindex?sslmode=disable
+      # Connect to Ollama running on the host
+      EMBED_BASE_URL: http://host.docker.internal:11434/v1
+      EMBED_MODEL: nomic-embed-text
+      EMBED_API_KEY: ollama
+      EMBED_DIMENSIONS: 768
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      DATABASE_URL: postgres://trindex:trindex@postgres:5432/trindex?sslmode=disable
-      EMBED_BASE_URL: ${EMBED_BASE_URL:-http://host.docker.internal:11434/v1}
-      EMBED_MODEL: ${EMBED_MODEL:-nomic-embed-text}
-      EMBED_API_KEY: ${EMBED_API_KEY:-ollama}
-      EMBED_DIMENSIONS: ${EMBED_DIMENSIONS:-768}
-      TRANSPORT: stdio
-    stdin_open: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["server"]
 
 volumes:
   pgdata:
 ```
+
+**Why Ollama on the host?**
+- GPU acceleration works natively (no Docker GPU passthrough complexity)
+- Better performance (~50-100ms vs ~500-2000ms per embedding)
+- Simpler deployment
 
 ---
 
@@ -403,6 +429,62 @@ ENTRYPOINT ["./trindex"]
 
 ---
 
+## MCP Client/Server Architecture
+
+Trindex uses a **client/server** architecture for MCP:
+
+- **`trindex server`** - Full server with Postgres + Ollama (runs on port 9636)
+- **`trindex mcp`** - Thin MCP proxy client (stdio → HTTP)
+
+### Architecture Flow
+
+```
+┌─────────────────┐      ┌──────────────────┐      ┌──────────────────┐
+│   AI Agent      │stdio │  trindex mcp     │ HTTP │  trindex server  │
+│  (opencode)     │──────▶│  (proxy client)  │──────▶│  :9636           │
+└─────────────────┘      └──────────────────┘      └──────────────────┘
+                              TRINDEX_URL              │
+                                                       ▼
+                                               ┌──────────────┐
+                                               │  PostgreSQL  │
+                                               │  + Ollama    │
+                                               └──────────────┘
+```
+
+### Client Mode (Default)
+
+By default, `trindex mcp` runs as a **proxy client** that forwards MCP calls to a Trindex server:
+
+```bash
+# Set the server URL (defaults to http://localhost:9636)
+export TRINDEX_URL=http://localhost:9636
+export TRINDEX_API_KEY=your-secret-key  # If server requires auth
+
+# Run MCP client (no local DB/Ollama needed!)
+trindex mcp
+```
+
+**Benefits:**
+- Zero local dependencies (just the binary)
+- Multiple agents can share one server
+- Centralized memory management
+
+### Local Mode (Legacy)
+
+To run MCP with local database (old behavior):
+
+```bash
+# Set TRINDEX_URL to "local" or empty
+export TRINDEX_URL=local
+
+# Or use --remote flag
+trindex mcp --remote local
+```
+
+This requires local Postgres and Ollama.
+
+---
+
 ## opencode MCP Config
 
 Add to `opencode.json` or `~/.config/opencode/opencode.json`:
@@ -419,19 +501,10 @@ Add to `opencode.json` or `~/.config/opencode/opencode.json`:
 }
 ```
 
-Or with Docker:
-
-```json
-{
-  "mcp": {
-    "trindex": {
-      "type": "local",
-      "command": ["docker", "compose", "-f", "/path/to/trindex/docker-compose.yml", "run", "--rm", "-i", "trindex", "mcp"],
-      "enabled": true
-    }
-  }
-}
-```
+**Prerequisites:**
+1. Start the Trindex server first: `docker compose up -d` or `./trindex server`
+2. Ensure `TRINDEX_URL` points to your server (default: http://localhost:9636)
+3. Set `TRINDEX_API_KEY` if your server requires authentication
 
 ---
 

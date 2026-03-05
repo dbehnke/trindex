@@ -45,7 +45,7 @@ func runSearch(ctx context.Context, query string) error {
 	fs.IntVar(&flags.TopK, "top-k", 10, "Number of results")
 	fs.Float64Var(&flags.Threshold, "threshold", 0.0, "Similarity threshold (0.0-1.0)")
 	fs.BoolVar(&flags.JSONOutput, "json", false, "Output as JSON")
-	fs.StringVar(&flags.APIURL, "api-url", getEnv("TRINDEX_API_URL", "http://localhost:8080"), "API URL")
+	fs.StringVar(&flags.APIURL, "api-url", getEnv("TRINDEX_API_URL", "http://localhost:9636"), "API URL")
 	fs.StringVar(&flags.APIKey, "api-key", getEnv("TRINDEX_API_KEY", ""), "API key")
 
 	if err := fs.Parse(os.Args[3:]); err != nil {

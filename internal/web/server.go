@@ -92,6 +92,9 @@ func (s *Server) setupRouter() {
 		r.Post("/import", s.handleImport)
 		r.Get("/duplicates", s.handleFindDuplicates)
 		r.Post("/duplicates/merge", s.handleMergeDuplicates)
+
+		r.Get("/mcp/tools", s.handleMCPTools)
+		r.Post("/mcp/call", s.handleMCPCall)
 	})
 
 	staticFS, err := fs.Sub(distFS, "dist")

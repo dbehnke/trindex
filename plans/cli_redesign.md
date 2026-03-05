@@ -9,7 +9,7 @@ This plan redesigns the Trindex CLI from a single binary that starts everything 
 ## Current State
 
 ```bash
-./trindex                      # Starts MCP (stdio) + HTTP (port 8080) + DB connection
+./trindex                      # Starts MCP (stdio) + HTTP (port 9636) + DB connection
 ```
 
 **Problems:**
@@ -34,7 +34,7 @@ trindex mcp [flags]
 # HTTP Server Mode - Standalone REST API server
 trindex server [flags]
   --host HOST                  # HTTP host (default: 0.0.0.0)
-  --port PORT                  # HTTP port (default: 8080)
+  --port PORT                  # HTTP port (default: 9636)
   --no-ui                      # Disable web UI, API only
 
 # Diagnostic Commands
@@ -401,7 +401,7 @@ embedding:
 
 server:
   host: 0.0.0.0
-  port: 8080
+  port: 9636
   api_key: ""  # Set for production
 
 recall:

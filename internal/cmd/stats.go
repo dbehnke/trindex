@@ -34,7 +34,7 @@ func runStats(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("stats", flag.ContinueOnError)
 	fs.StringVar(&flags.Namespace, "namespace", "", "Stats for specific namespace")
 	fs.BoolVar(&flags.JSONOutput, "json", false, "Output as JSON")
-	fs.StringVar(&flags.APIURL, "api-url", getEnv("TRINDEX_API_URL", "http://localhost:8080"), "API URL")
+	fs.StringVar(&flags.APIURL, "api-url", getEnv("TRINDEX_API_URL", "http://localhost:9636"), "API URL")
 	fs.StringVar(&flags.APIKey, "api-key", getEnv("TRINDEX_API_KEY", ""), "API key")
 
 	if err := fs.Parse(args); err != nil {

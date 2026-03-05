@@ -63,23 +63,27 @@ Works with: Claude Code, opencode, Cursor, any MCP client
 ## Architecture
 
 ```
-┌─────────────────┐
-│   MCP Client    │  (Claude, opencode, etc.)
-└────────┬────────┘
-         │ stdio
-┌────────▼────────┐
-│  trindex mcp    │  (MCP server)
-└────────┬────────┘
-         │
-┌────────▼────────┐     ┌─────────────────┐
-│  trindex server │────▶│  REST API       │
-│  (HTTP + Web UI)│     │  /api/memories  │
-└────────┬────────┘     │  /api/search    │
-         │              └─────────────────┘
-┌────────▼────────┐
-│   PostgreSQL    │  (pgvector extension)
-│   + pgvector    │
-└─────────────────┘
+┌─────────────────┐      ┌─────────────────────┐
+│   MCP Client    │stdio │   trindex mcp       │
+│ (Claude/opencode│─────▶│   (proxy client)    │
+└─────────────────┘      └──────────┬──────────┘
+                                     │ HTTP/JSON
+                                     ▼
+                          ┌─────────────────────┐
+                          │   trindex server    │
+                          │   (HTTP + Web UI)   │
+                          │   :9636             │
+                          └──────────┬──────────┘
+                                     │
+                  ┌──────────────────┴──────────────────┐
+                  │  /api/mcp/tools  /api/mcp/call      │
+                  │  /api/memories   /api/search         │
+                  └──────────────────┬──────────────────┘
+                                     │
+                          ┌─────────────────────┐
+                          │ PostgreSQL +        │
+                          │ pgvector            │
+                          └─────────────────────┘
 ```
 
 ---
@@ -96,7 +100,7 @@ Works with: Claude Code, opencode, Cursor, any MCP client
 
 ### After (Explicit Subcommands)
 ```bash
-./trindex mcp           # MCP server only
+./trindex mcp           # MCP proxy client (stdio -> HTTP)
 ./trindex server        # HTTP server only
 ./trindex doctor        # Diagnostics
 ./trindex memories list # CLI access to API
@@ -117,9 +121,9 @@ Works with: Claude Code, opencode, Cursor, any MCP client
 # ✅ Embedding endpoint
 
 # Start HTTP server
-./trindex server --port 3000
+./trindex server --port 9636
 
-# Start MCP server
+# Start MCP proxy client
 ./trindex mcp
 ```
 
@@ -230,7 +234,10 @@ cp .env.example .env
 # Run with Docker Compose
 docker compose up -d
 
-# Or build locally
+# Run MCP client (defaults to http://localhost:9636)
+./trindex mcp
+
+# Or build and run locally
 go build -o trindex ./cmd/trindex
 ./trindex doctor
 ./trindex server
@@ -269,4 +276,3 @@ go build -o trindex ./cmd/trindex
 **Trindex**: One brain, every agent.
 
 Persistent semantic memory for the AI age.
-

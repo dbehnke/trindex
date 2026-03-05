@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"github.com/dbehnke/trindex/internal/config"
 	"github.com/dbehnke/trindex/internal/db"
@@ -22,12 +23,12 @@ func NewMCPCommand() *Command {
 	flags := &MCPFlags{}
 	fs := flag.NewFlagSet("mcp", flag.ExitOnError)
 	fs.StringVar(&flags.ConfigPath, "config", "", "Config file path")
-	fs.StringVar(&flags.RemoteURL, "remote", "", "Remote Trindex HTTP API URL")
-	fs.StringVar(&flags.APIKey, "api-key", "", "API key for remote connection")
+	fs.StringVar(&flags.RemoteURL, "remote", "", "Remote Trindex HTTP API URL (default: http://localhost:9636)")
+	fs.StringVar(&flags.APIKey, "api-key", "", "API key for remote connection (default: TRINDEX_API_KEY env)")
 
 	return &Command{
 		Name:        "mcp",
-		Description: "Run MCP server (stdio)",
+		Description: "Run MCP server (stdio) - proxies to remote Trindex server",
 		Flags:       fs,
 		Run: func(ctx context.Context, args []string) error {
 			return RunMCP(ctx, flags)
@@ -36,13 +37,27 @@ func NewMCPCommand() *Command {
 }
 
 func RunMCP(ctx context.Context, flags *MCPFlags) error {
+	serverURL := flags.RemoteURL
+	if serverURL == "" {
+		serverURL = os.Getenv("TRINDEX_URL")
+	}
+	if serverURL == "" {
+		serverURL = "http://localhost:9636"
+	}
+
+	apiKey := flags.APIKey
+	if apiKey == "" {
+		apiKey = os.Getenv("TRINDEX_API_KEY")
+	}
+
+	if serverURL != "" && serverURL != "local" {
+		slog.Info("Trindex MCP client starting in proxy mode", "server", serverURL)
+		return RunMCPProxy(ctx, serverURL, apiKey)
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	if flags.RemoteURL != "" {
-		return fmt.Errorf("remote MCP mode not yet implemented")
 	}
 
 	database, err := db.New(cfg)
@@ -63,10 +78,15 @@ func RunMCP(ctx context.Context, flags *MCPFlags) error {
 	mcpServer := mcp.NewServer(cfg, database, embedClient)
 	mcpServer.RegisterTools()
 
-	slog.Info("Trindex MCP server starting", "transport", "stdio")
+	slog.Info("Trindex MCP server starting in local mode", "transport", "stdio")
 	if err := mcpServer.Run(ctx); err != nil {
 		return fmt.Errorf("mcp server error: %w", err)
 	}
 
 	return nil
+}
+
+func RunMCPProxy(ctx context.Context, serverURL, apiKey string) error {
+	proxy := NewMCPProxy(serverURL, apiKey)
+	return proxy.Run(ctx)
 }

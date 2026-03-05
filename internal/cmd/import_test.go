@@ -103,7 +103,7 @@ func TestImportCommand(t *testing.T) {
 
 	t.Run("file not found", func(t *testing.T) {
 		flags := &ImportFlags{
-			APIURL: "http://localhost:8080",
+			APIURL: "http://localhost:9636",
 		}
 
 		var buf bytes.Buffer

@@ -37,7 +37,7 @@ func runImport(ctx context.Context, filePath string, args []string) error {
 	fs := flag.NewFlagSet("import", flag.ContinueOnError)
 	fs.StringVar(&flags.SkipExisting, "skip-existing", "false", "Skip duplicates")
 	fs.StringVar(&flags.Namespace, "namespace", "", "Import to specific namespace")
-	fs.StringVar(&flags.APIURL, "api-url", getEnv("TRINDEX_API_URL", "http://localhost:8080"), "API URL")
+	fs.StringVar(&flags.APIURL, "api-url", getEnv("TRINDEX_API_URL", "http://localhost:9636"), "API URL")
 	fs.StringVar(&flags.APIKey, "api-key", getEnv("TRINDEX_API_KEY", ""), "API key")
 
 	if err := fs.Parse(args); err != nil {

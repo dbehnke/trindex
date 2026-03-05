@@ -78,7 +78,7 @@ func parseMemoriesFlags(args []string) (*MemoriesFlags, error) {
 	fs.IntVar(&flags.Offset, "offset", 0, "Pagination offset")
 	fs.StringVar(&flags.Order, "order", "desc", "Sort order (asc|desc)")
 	fs.BoolVar(&flags.JSONOutput, "json", false, "Output as JSON")
-	fs.StringVar(&flags.APIURL, "api-url", getEnv("TRINDEX_API_URL", "http://localhost:8080"), "API URL")
+	fs.StringVar(&flags.APIURL, "api-url", getEnv("TRINDEX_API_URL", "http://localhost:9636"), "API URL")
 	fs.StringVar(&flags.APIKey, "api-key", getEnv("TRINDEX_API_KEY", ""), "API key")
 	fs.StringVar(&flags.Content, "content", "", "Memory content")
 	fs.StringVar(&flags.Metadata, "metadata", "", "Metadata key=value (repeatable)")

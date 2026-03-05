@@ -18,7 +18,7 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, "nomic-embed-text", cfg.EmbedModel)
 	assert.Equal(t, 768, cfg.EmbedDimensions)
 	assert.Equal(t, "stdio", cfg.Transport)
-	assert.Equal(t, "8080", cfg.HTTPPort)
+	assert.Equal(t, "9636", cfg.HTTPPort)
 	assert.Equal(t, "default", cfg.DefaultNamespace)
 	assert.Equal(t, 10, cfg.DefaultTopK)
 }

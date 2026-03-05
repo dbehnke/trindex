@@ -22,7 +22,7 @@ func NewServerCommand() *Command {
 	flags := &ServerFlags{}
 	fs := flag.NewFlagSet("server", flag.ExitOnError)
 	fs.StringVar(&flags.Host, "host", "", "HTTP host (default: 0.0.0.0)")
-	fs.StringVar(&flags.Port, "port", "", "HTTP port (default: 8080)")
+	fs.StringVar(&flags.Port, "port", "", "HTTP port (default from config: 9636)")
 	fs.BoolVar(&flags.NoUI, "no-ui", false, "Disable web UI, API only")
 
 	return &Command{

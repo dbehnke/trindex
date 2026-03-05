@@ -13,7 +13,7 @@ Trindex is a standalone Go binary that provides persistent, semantic memory for 
 - Go 1.26+ (for building from source)
 - Docker and Docker Compose (recommended)
 - Postgres 17 with pgvector extension
-- An OpenAI-compatible embedding endpoint (Ollama, LM Studio, OpenAI, etc.)
+- Ollama (for embeddings) - must run on the host for GPU acceleration
 
 ### Installation
 
@@ -24,14 +24,23 @@ Trindex is a standalone Go binary that provides persistent, semantic memory for 
 git clone https://github.com/dbehnke/trindex.git
 cd trindex
 
+# Install and start Ollama (on the host, not in Docker)
+# macOS:
+brew install ollama && ollama serve
+# Linux:
+curl -fsSL https://ollama.com/install.sh | sh && ollama serve
+
+# Pull the embedding model (one-time)
+ollama pull nomic-embed-text
+
 # Copy environment file
 cp .env.example .env
 
-# Edit .env with your embedding endpoint configuration
-# For Ollama (default): EMBED_BASE_URL=http://host.docker.internal:11434/v1
-
-# Start Postgres and trindex
+# Start Trindex server (Postgres + Trindex)
 docker compose up -d
+
+# Verify it's working
+./trindex doctor
 ```
 
 #### Option 2: Build from Source
@@ -125,7 +134,7 @@ Trindex includes a built-in web interface for browsing and managing memories. Th
 
 Once the server is running, open your browser to:
 ```
-http://localhost:8080
+http://localhost:9636
 ```
 
 The web interface provides:
@@ -142,9 +151,45 @@ The web interface provides:
 - Namespace filtering
 - Similarity-based search results
 
-## MCP Configuration
+## MCP Client/Server Architecture
 
-MCP clients **must** use the explicit `mcp` subcommand:
+Trindex uses a **client/server** model for MCP integration:
+
+- **`trindex server`** - The full backend (Postgres + Ollama + REST API + Web UI) running on port 9636
+- **`trindex mcp`** - A thin proxy client that forwards MCP calls to the server
+
+This design allows multiple AI agents to share a centralized memory server.
+
+```
+┌─────────────────┐      ┌──────────────────┐      ┌──────────────────┐
+│   AI Agent      │stdio │  trindex mcp     │ HTTP │  trindex server  │
+│  (opencode)     │──────▶│  (proxy client)  │──────▶│  :9636           │
+└─────────────────┘      └──────────────────┘      └──────────────────┘
+                              TRINDEX_URL              │
+                                                       ▼
+                                               ┌──────────────┐
+                                               │  PostgreSQL  │
+                                               │  + Ollama    │
+                                               └──────────────┘
+```
+
+### Configuration
+
+By default, `trindex mcp` connects to `http://localhost:9636`. Set `TRINDEX_URL` to point to a different server:
+
+```bash
+# Default (connects to localhost:9636)
+./trindex mcp
+
+# Connect to remote server
+export TRINDEX_URL=https://brain.example.com
+./trindex mcp
+
+# With authentication
+export TRINDEX_URL=https://brain.example.com
+export TRINDEX_API_KEY=your-secret-key
+./trindex mcp
+```
 
 ### opencode
 
@@ -162,11 +207,18 @@ Add to `~/.config/opencode/opencode.json`:
 }
 ```
 
+**Prerequisites:**
+- Start the Trindex server first: `docker compose up -d` or `./trindex server`
+- Ensure `TRINDEX_URL` points to your server (default: http://localhost:9636)
+- Set `TRINDEX_API_KEY` if your server requires authentication
+
 ### Claude Code
 
 ```bash
 claude mcp add trindex --command "/path/to/trindex mcp"
 ```
+
+**Note:** The server must be running before the MCP client starts.
 
 ## Development
 

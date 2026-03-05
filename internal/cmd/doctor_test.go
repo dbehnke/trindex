@@ -9,7 +9,7 @@ import (
 
 func TestDoctorCommand(t *testing.T) {
 	t.Run("reports config errors", func(t *testing.T) {
-		t.Setenv("DATABASE_URL", "")
+		t.Setenv("EMBED_DIMENSIONS", "0")
 
 		ctx := context.Background()
 		exitCode := RunDoctor(ctx)

@@ -27,7 +27,7 @@ These flags are available for all commands:
 | `--log-level LEVEL` | Log level (debug\|info\|warn\|error) | info |
 | `--json` | Output as JSON | false |
 | `--api-key KEY` | API key for REST commands | TRINDEX_API_KEY env |
-| `--api-url URL` | Trindex HTTP API URL | http://localhost:8080 |
+| `--api-url URL` | Trindex HTTP API URL | http://localhost:9636 |
 
 ## Configuration Files
 
@@ -72,7 +72,7 @@ embed_dimensions: 768
 
 # HTTP Server settings
 http_host: "0.0.0.0"
-http_port: "8080"
+http_port: "9636"
 
 # Default search settings
 default_namespace: "default"
@@ -95,7 +95,9 @@ This means environment variables override config file settings, allowing you to 
 
 ### mcp
 
-Run the MCP server for AI agent integration via stdio transport.
+Run the MCP client for AI agent integration via stdio transport.
+
+By default, `trindex mcp` runs as a **thin proxy client** that forwards MCP tool calls to a Trindex server. This enables multiple AI agents to share a centralized memory server.
 
 ```bash
 trindex mcp [flags]
@@ -106,18 +108,37 @@ trindex mcp [flags]
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--config PATH` | Config file path | - |
-| `--remote URL` | Remote Trindex HTTP API URL (future) | - |
-| `--api-key KEY` | API key for remote connection | - |
+| `--remote URL` | Trindex server URL | TRINDEX_URL env or http://localhost:9636 |
+| `--api-key KEY` | API key for server authentication | TRINDEX_API_KEY env |
 
-**Example:**
+**Environment Variables:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TRINDEX_URL` | URL of the Trindex server | http://localhost:9636 |
+| `TRINDEX_API_KEY` | API key for authentication | - |
+
+**Examples:**
 
 ```bash
-# Run MCP server with default config
+# Run MCP client (connects to http://localhost:9636 by default)
 trindex mcp
 
-# Run with custom config
-trindex mcp --config /path/to/config.yaml
+# Connect to remote server
+export TRINDEX_URL=https://brain.example.com
+trindex mcp
+
+# Or use flags
+trindex mcp --remote https://brain.example.com --api-key secret
+
+# Run in local mode (legacy, requires local Postgres + Ollama)
+trindex mcp --remote local
 ```
+
+**Prerequisites:**
+- The Trindex server must be running (`trindex server` or `docker compose up`)
+- `TRINDEX_URL` must point to the server (default: http://localhost:9636)
+- `TRINDEX_API_KEY` must be set if the server requires authentication
 
 ### server
 
@@ -132,7 +153,7 @@ trindex server [flags]
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--host HOST` | HTTP host | 0.0.0.0 |
-| `--port PORT` | HTTP port | 8080 |
+| `--port PORT` | HTTP port | 9636 |
 | `--no-ui` | Disable web UI, API only | false |
 
 **Example:**
@@ -472,7 +493,7 @@ Trindex can be configured via environment variables. These can also be set in a 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `HTTP_HOST` | HTTP server host | 0.0.0.0 |
-| `HTTP_PORT` | HTTP server port | 8080 |
+| `HTTP_PORT` | HTTP server port | 9636 |
 | `TRINDEX_API_KEY` | API key for REST endpoints | - |
 
 ### Search
@@ -510,7 +531,7 @@ embedding:
 
 server:
   host: 0.0.0.0
-  port: 8080
+  port: 9636
 
 recall:
   default_namespace: default

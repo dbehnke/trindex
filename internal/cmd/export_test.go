@@ -76,7 +76,7 @@ func TestExportCommand(t *testing.T) {
 
 	t.Run("invalid since date", func(t *testing.T) {
 		flags := &ExportFlags{
-			APIURL: "http://localhost:8080",
+			APIURL: "http://localhost:9636",
 			Since:  "invalid-date",
 		}
 
@@ -90,7 +90,7 @@ func TestExportCommand(t *testing.T) {
 
 	t.Run("invalid until date", func(t *testing.T) {
 		flags := &ExportFlags{
-			APIURL: "http://localhost:8080",
+			APIURL: "http://localhost:9636",
 			Until:  "invalid-date",
 		}
 

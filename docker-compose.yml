@@ -17,20 +17,26 @@ services:
       timeout: 5s
       retries: 5
 
-  trindex:
+  trindex-server:
     build: .
+    ports:
+      - "9636:9636"
+    environment:
+      HTTP_HOST: "0.0.0.0"
+      HTTP_PORT: "9636"
+      TRINDEX_API_KEY: ${TRINDEX_API_KEY:-change-me-in-production}
+      DATABASE_URL: postgres://trindex:trindex@postgres:5432/trindex?sslmode=disable
+      # Connect to Ollama running on the host (not in Docker)
+      EMBED_BASE_URL: http://host.docker.internal:11434/v1
+      EMBED_MODEL: nomic-embed-text
+      EMBED_API_KEY: ollama
+      EMBED_DIMENSIONS: 768
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      DATABASE_URL: postgres://trindex:trindex@postgres:5432/trindex?sslmode=disable
-      EMBED_BASE_URL: ${EMBED_BASE_URL:-http://host.docker.internal:11434/v1}
-      EMBED_MODEL: ${EMBED_MODEL:-nomic-embed-text}
-      EMBED_API_KEY: ${EMBED_API_KEY:-ollama}
-      EMBED_DIMENSIONS: ${EMBED_DIMENSIONS:-1536}
-      TRANSPORT: stdio
-    stdin_open: true
-    tty: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["server"]
 
 volumes:
   pgdata:

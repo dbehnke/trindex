@@ -225,9 +225,9 @@ SLIDE_DURATION = 30  # seconds per slide (adjust based on your script)
 
 # Speaker script extracted from speaker-script.md
 SCRIPTS = {
-    1: "Trindex: Persistent Semantic Memory for AI Agents. A standalone Go binary for AI agent memory via MCP.",
-    2: "What is Trindex? It stores memories as vector embeddings, retrieves via semantic similarity, uses hybrid search combining vector and full-text, supports namespace scoping, and provides REST API, Web UI, and CLI.",
-    3: "The problem: AI agents have no memory. Every conversation starts fresh. Context windows are limited. No standard persistence across sessions. Existing solutions like LangChain are Python-only. Trindex is language-agnostic via MCP.",
+    1: "Trindex: Persistent Semantic Memory for AI Agents.",
+    2: "Trindex uses a client server MCP model: trindex mcp runs as a thin proxy client, and trindex server runs the shared backend on port 9636.",
+    3: "The server provides MCP-over-HTTP endpoints plus REST API, backed by PostgreSQL with pgvector for hybrid semantic search.",
     # Add remaining slides...
 }
 
@@ -416,7 +416,7 @@ trap "rm -rf $TMPDIR" EXIT
 # Speaker scripts (from speaker-script.md)
 declare -A SCRIPTS=(
     [1]="Trindex: Persistent Semantic Memory for AI Agents"
-    [2]="What is Trindex? It is a standalone Go binary that provides persistent, semantic memory for AI agents via the Model Context Protocol."
+    [2]="Trindex uses a client server MCP architecture: trindex mcp is the local proxy client, and trindex server is the shared backend at port 9636."
     # ... add all slides
 )
 
