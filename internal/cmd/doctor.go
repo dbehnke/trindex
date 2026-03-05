@@ -58,12 +58,23 @@ func RunDoctor(ctx context.Context) int {
 			} else {
 				fmt.Println("✅ PASSED")
 
-				var count int
-				err := database.Pool().QueryRow(ctx, "SELECT COUNT(*) FROM memories").Scan(&count)
+				var tableExists bool
+				err := database.Pool().QueryRow(ctx,
+					"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'memories')").Scan(&tableExists)
 				if err != nil {
-					fmt.Printf("   ⚠️  Table check failed: %v\n", err)
+					fmt.Printf("   ⚠️  Could not check tables: %v\n", err)
+				} else if !tableExists {
+					fmt.Println("   ⚠️  Database tables not initialized")
+					fmt.Println("      Run: trindex server (auto-migrates on startup)")
+					fmt.Println("      Or:  trindex mcp (auto-migrates on startup)")
 				} else {
-					fmt.Printf("   Memories in database: %d\n", count)
+					var count int
+					err := database.Pool().QueryRow(ctx, "SELECT COUNT(*) FROM memories").Scan(&count)
+					if err != nil {
+						fmt.Printf("   ⚠️  Could not count memories: %v\n", err)
+					} else {
+						fmt.Printf("   Memories in database: %d\n", count)
+					}
 				}
 			}
 			database.Close()
