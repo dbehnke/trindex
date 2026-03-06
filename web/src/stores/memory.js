@@ -11,6 +11,18 @@ function getHeaders() {
   }
 }
 
+async function apiFetch(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: { ...getHeaders(), ...options.headers }
+  })
+  if (response.status === 401) {
+    localStorage.removeItem('trindex_api_key')
+    window.location.href = '/login'
+  }
+  return response
+}
+
 export const useMemoryStore = defineStore('memory', () => {
   const memories = ref([])
   const searchResults = ref([])
@@ -31,11 +43,9 @@ export const useMemoryStore = defineStore('memory', () => {
       if (params.offset) queryParams.append('offset', params.offset)
       if (params.order) queryParams.append('order', params.order)
 
-      const response = await fetch(`${API_BASE}/memories/?${queryParams}`, {
-        headers: getHeaders()
-      })
+      const response = await apiFetch(`${API_BASE}/memories/?${queryParams}`)
       if (!response.ok) throw new Error(await response.text())
-      memories.value = await response.json()
+      memories.value = await response.json() || []
     } catch (e) {
       error.value = e.message
     } finally {
@@ -44,9 +54,7 @@ export const useMemoryStore = defineStore('memory', () => {
   }
 
   async function fetchMemory(id) {
-    const response = await fetch(`${API_BASE}/memories/${id}`, {
-      headers: getHeaders()
-    })
+    const response = await apiFetch(`${API_BASE}/memories/${id}`)
     if (!response.ok) throw new Error(await response.text())
     return response.json()
   }
@@ -55,9 +63,8 @@ export const useMemoryStore = defineStore('memory', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE}/memories/`, {
+      const response = await apiFetch(`${API_BASE}/memories/`, {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify(data)
       })
       if (!response.ok) throw new Error(await response.text())
@@ -73,9 +80,8 @@ export const useMemoryStore = defineStore('memory', () => {
   }
 
   async function deleteMemory(id) {
-    const response = await fetch(`${API_BASE}/memories/${id}`, {
-      method: 'DELETE',
-      headers: getHeaders()
+    const response = await apiFetch(`${API_BASE}/memories/${id}`, {
+      method: 'DELETE'
     })
     if (!response.ok) throw new Error(await response.text())
     memories.value = memories.value.filter(m => m.id !== id)
@@ -85,9 +91,8 @@ export const useMemoryStore = defineStore('memory', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await fetch(`${API_BASE}/search`, {
+      const response = await apiFetch(`${API_BASE}/search`, {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify({
           query,
           namespaces,
@@ -97,7 +102,7 @@ export const useMemoryStore = defineStore('memory', () => {
       })
       if (!response.ok) throw new Error(await response.text())
       const data = await response.json()
-      searchResults.value = data.results
+      searchResults.value = data.results || []
       return data
     } catch (e) {
       error.value = e.message
@@ -110,9 +115,7 @@ export const useMemoryStore = defineStore('memory', () => {
   async function fetchStats(namespace = '') {
     try {
       const queryParams = namespace ? `?namespace=${namespace}` : ''
-      const response = await fetch(`${API_BASE}/stats${queryParams}`, {
-        headers: getHeaders()
-      })
+      const response = await apiFetch(`${API_BASE}/stats${queryParams}`)
       if (!response.ok) throw new Error(await response.text())
       stats.value = await response.json()
     } catch (e) {

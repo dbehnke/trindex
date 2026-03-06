@@ -1,58 +1,65 @@
 <template>
   <div class="space-y-6">
-    <h2 class="text-2xl font-bold text-text">Statistics</h2>
+    <div class="flex items-center gap-3 mb-8 border-b border-border pb-4">
+      <div class="w-1.5 h-6 bg-primary shadow-[0_0_8px_#39ff14]"></div>
+      <h2 class="text-2xl font-bold text-text-dark tracking-wider">System Analytics</h2>
+    </div>
 
-    <div v-if="loading" class="text-center py-12">
-      Loading statistics...
+    <div v-if="loading" class="text-center py-12 text-text-muted font-mono animate-pulse">
+      > Compiling statistics...
     </div>
 
     <div v-else-if="stats" class="space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="card">
-          <p class="text-sm text-text-muted mb-1">Total Memories</p>
-          <p class="text-3xl font-bold">{{ formatNumber(stats.total_memories) }}</p>
+        <div class="card relative overflow-hidden group">
+          <div class="absolute top-0 right-0 w-12 h-12 bg-primary opacity-5 rounded-bl-full group-hover:opacity-10 transition-opacity"></div>
+          <p class="text-xs uppercase tracking-wider text-text-muted mb-1 font-mono">Total Vectors</p>
+          <p class="text-3xl font-bold text-text-dark font-mono">{{ formatNumber(stats.total_memories) }}</p>
         </div>
 
-        <div class="card">
-          <p class="text-sm text-text-muted mb-1">Last 24 Hours</p>
-          <p class="text-3xl font-bold text-success">{{ formatNumber(stats.recent_24h) }}</p>
+        <div class="card relative overflow-hidden group">
+          <div class="absolute top-0 right-0 w-12 h-12 bg-primary opacity-5 rounded-bl-full group-hover:opacity-10 transition-opacity"></div>
+          <p class="text-xs uppercase tracking-wider text-text-muted mb-1 font-mono">Velocity (24h)</p>
+          <p class="text-3xl font-bold text-primary font-mono drop-shadow-[0_0_5px_rgba(57,_255,_20,_0.5)]">+{{ formatNumber(stats.recent_24h) }}</p>
         </div>
 
-        <div class="card">
-          <p class="text-sm text-text-muted mb-1">Namespaces</p>
-          <p class="text-3xl font-bold text-primary">{{ Object.keys(stats.by_namespace).length }}</p>
+        <div class="card relative overflow-hidden group">
+          <div class="absolute top-0 right-0 w-12 h-12 bg-secondary opacity-5 rounded-bl-full group-hover:opacity-10 transition-opacity"></div>
+          <p class="text-xs uppercase tracking-wider text-text-muted mb-1 font-mono">Active Namespaces</p>
+          <p class="text-3xl font-bold text-secondary font-mono drop-shadow-[0_0_5px_rgba(191,_0,_255,_0.5)]">{{ Object.keys(stats.by_namespace).length }}</p>
         </div>
 
-        <div class="card">
-          <p class="text-sm text-text-muted mb-1">Top Tags</p>
-          <p class="text-3xl font-bold text-purple-600">{{ stats.top_tags?.length || 0 }}</p>
+        <div class="card relative overflow-hidden group">
+          <div class="absolute top-0 right-0 w-12 h-12 bg-warning opacity-5 rounded-bl-full group-hover:opacity-10 transition-opacity"></div>
+          <p class="text-xs uppercase tracking-wider text-text-muted mb-1 font-mono">Unique Tags</p>
+          <p class="text-3xl font-bold text-warning font-mono">{{ stats.top_tags?.length || 0 }}</p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         <div class="card">
-          <h3 class="text-lg font-semibold mb-6">Namespace Distribution</h3>
+          <h3 class="text-sm uppercase tracking-widest text-text-muted border-b border-border pb-3 mb-5 font-mono">Volume by Namespace</h3>
           
-          <div v-if="namespaceChartData.length === 0" class="text-center py-8 text-text-muted">
-            No data available
+          <div v-if="namespaceChartData.length === 0" class="text-center py-8 text-text-muted font-mono italic">
+            [ No data fragments found ]
           </div>
           
           <div v-else class="space-y-4">
             <div
               v-for="item in namespaceChartData"
               :key="item.name"
-              class="space-y-2"
+              class="space-y-2 group"
             >
               <div class="flex items-center justify-between">
-                <span class="text-sm font-medium">{{ item.name }}</span>
-                <span class="text-sm text-text-muted">
-                  {{ item.count }} ({{ item.percentage.toFixed(1) }}%)
+                <span class="text-xs font-mono tracking-wider text-text-dark truncate max-w-[60%]">{{ item.name }}</span>
+                <span class="text-xs font-mono text-text-muted group-hover:text-primary transition-colors">
+                  {{ item.count }} <span class="text-primary/60">({{ item.percentage.toFixed(1) }}%)</span>
                 </span>
               </div>
               
-              <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div class="h-1 bg-[#1a1a3a] rounded-full overflow-hidden">
                 <div
-                  class="h-full bg-primary rounded-full transition-all duration-500"
+                  class="h-full bg-secondary rounded-full shadow-[0_0_8px_#bf00ff] transition-all duration-1000"
                   :style="{ width: item.percentage + '%' }"
                 ></div>
               </div>
@@ -61,47 +68,47 @@
         </div>
 
         <div class="card">
-          <h3 class="text-lg font-semibold mb-6">System Information</h3>
+          <h3 class="text-sm uppercase tracking-widest text-text-muted border-b border-border pb-3 mb-5 font-mono">Hardware & Core Info</h3>
           
-          <div class="space-y-4">
-            <div class="flex justify-between py-3 border-b border-border">
-              <span class="text-text-muted">Embedding Model</span>
-              <span class="font-medium">{{ stats.embedding_model }}</span>
+          <div class="space-y-1 font-mono text-sm bg-[#020205] p-4 rounded-md border border-border/50">
+            <div class="flex justify-between py-2 border-b border-border-dark/50 hover:bg-[#050510] px-2 -mx-2 rounded transition-colors">
+              <span class="text-text-muted">> Model_Core:</span>
+              <span class="text-primary tracking-wide">{{ stats.embedding_model }}</span>
             </div>
             
-            <div class="flex justify-between py-3 border-b border-border">
-              <span class="text-text-muted">Dimensions</span>
-              <span class="font-medium">{{ stats.embed_dimensions }}</span>
+            <div class="flex justify-between py-2 border-b border-border-dark/50 hover:bg-[#050510] px-2 -mx-2 rounded transition-colors">
+              <span class="text-text-muted">> Dimensions:</span>
+              <span class="text-text-dark font-bold">{{ stats.embed_dimensions }}</span>
             </div>
             
-            <div class="flex justify-between py-3 border-b border-border">
-              <span class="text-text-muted">Oldest Memory</span>
-              <span class="font-medium">{{ stats.oldest_memory ? formatDate(stats.oldest_memory) : 'N/A' }}</span>
+            <div class="flex justify-between py-2 border-b border-border-dark/50 hover:bg-[#050510] px-2 -mx-2 rounded transition-colors">
+              <span class="text-text-muted">> Origin_Timestamp:</span>
+              <span class="text-text-dark">{{ stats.oldest_memory ? formatDate(stats.oldest_memory) : 'NULL' }}</span>
             </div>
             
-            <div class="flex justify-between py-3">
-              <span class="text-text-muted">Newest Memory</span>
-              <span class="font-medium">{{ stats.newest_memory ? formatDate(stats.newest_memory) : 'N/A' }}</span>
+            <div class="flex justify-between py-2 hover:bg-[#050510] px-2 -mx-2 rounded transition-colors">
+              <span class="text-text-muted">> Latest_Write:</span>
+              <span class="text-text-dark">{{ stats.newest_memory ? formatDate(stats.newest_memory) : 'NULL' }}</span>
             </div>
           </div>
         </div>
       </div>
 
       <div class="card">
-        <h3 class="text-lg font-semibold mb-6">Top Tags</h3>
+        <h3 class="text-sm uppercase tracking-widest text-text-muted border-b border-border pb-3 mb-5 font-mono">Global Tag Index</h3>
         
-        <div v-if="!stats.top_tags?.length" class="text-center py-8 text-text-muted">
-          No tags found
+        <div v-if="!stats.top_tags?.length" class="text-center py-8 text-text-muted font-mono italic">
+          [ Index Empty ]
         </div>
         
         <div v-else class="flex flex-wrap gap-3">
           <span
             v-for="(tag, index) in stats.top_tags"
             :key="tag"
-            class="px-4 py-2 rounded-full text-sm font-medium transition-colors"
+            class="px-3 py-1.5 rounded-sm text-xs font-mono font-medium border transition-all duration-300 hover:-translate-y-0.5"
             :class="getTagClass(index)"
           >
-            {{ tag }}
+            #{{ tag }}
           </span>
         </div>
       </div>
@@ -143,18 +150,13 @@ function formatDate(dateString) {
   return new Date(dateString).toLocaleString()
 }
 
+// Map tags to devtool neon colors for variety
 function getTagClass(index) {
   const classes = [
-    'bg-blue-100 text-blue-700',
-    'bg-green-100 text-green-700',
-    'bg-yellow-100 text-yellow-700',
-    'bg-purple-100 text-purple-700',
-    'bg-pink-100 text-pink-700',
-    'bg-indigo-100 text-indigo-700',
-    'bg-red-100 text-red-700',
-    'bg-orange-100 text-orange-700',
-    'bg-teal-100 text-teal-700',
-    'bg-cyan-100 text-cyan-700'
+    'bg-[rgba(57,_255,_20,_0.1)] text-primary border-primary/30 hover:bg-[rgba(57,_255,_20,_0.2)] hover:shadow-[0_0_8px_rgba(57,_255,_20,_0.4)]',
+    'bg-[rgba(191,_0,_255,_0.1)] text-secondary border-secondary/30 hover:bg-[rgba(191,_0,_255,_0.2)] hover:shadow-[0_0_8px_rgba(191,_0,_255,_0.4)]',
+    'bg-[rgba(255,_179,_0,_0.1)] text-warning border-warning/30 hover:bg-[rgba(255,_179,_0,_0.2)] hover:shadow-[0_0_8px_rgba(255,_179,_0,_0.4)]',
+    'bg-[rgba(255,_0,_60,_0.1)] text-error border-error/30 hover:bg-[rgba(255,_0,_60,_0.2)] hover:shadow-[0_0_8px_rgba(255,_0,_60,_0.4)]'
   ]
   return classes[index % classes.length]
 }

@@ -1,24 +1,93 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #3b82f6;
-  --color-primary-dark: #2563eb;
-  --color-secondary: #64748b;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-background: #ffffff;
-  --color-background-dark: #0f172a;
-  --color-surface: #f8fafc;
-  --color-surface-dark: #1e293b;
-  --color-text: #1e293b;
-  --color-text-dark: #f1f5f9;
-  --color-text-muted: #64748b;
-  --color-text-muted-dark: #94a3b8;
-  --color-border: #e2e8f0;
-  --color-border-dark: #334155;
+  --color-primary: #39ff14;
+  /* Neon Green */
+  --color-primary-dark: #1f9d0c;
+  --color-secondary: #bf00ff;
+  /* Neon Purple */
+  --color-secondary-dark: #7a00a3;
+  --color-success: #39ff14;
+  --color-warning: #ffb300;
+  --color-error: #ff003c;
+
+  /* Deep dark cyberpunk backgrounds */
+  --color-background: #050510;
+  --color-background-dark: #020205;
+  --color-surface: #0a0a1a;
+  --color-surface-dark: #05050f;
+
+  /* High contrast text */
+  --color-text: #e0e0ff;
+  --color-text-dark: #ffffff;
+  --color-text-muted: #8888aa;
+  --color-text-muted-dark: #666688;
+
+  /* Glowing or subtle neon borders */
+  --color-border: #1a1a3a;
+  --color-border-dark: #0f0f20;
+  --color-border-primary: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  --color-border-secondary: color-mix(in srgb, var(--color-secondary) 40%, transparent);
+
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-.dark {
-  color-scheme: dark;
+@utility shadow-glow-primary {
+  box-shadow: 0 0 15px color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+@utility shadow-glow-primary-sm {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+
+@utility shadow-glow-primary-hover {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+@utility shadow-glow-secondary-hover {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-secondary) 20%, transparent);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-text font-mono antialiased;
+    /* Force dark mode styling */
+    color-scheme: dark;
+  }
+}
+
+@layer components {
+
+  /* Developer Tool UI Components */
+  .card {
+    @apply bg-surface border border-border rounded-lg p-6 shadow-lg transition-all duration-300;
+  }
+
+  .card:hover {
+    @apply border-border-primary shadow-glow-primary;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 bg-transparent border border-primary text-primary rounded-md font-medium text-sm transition-all duration-200 hover:bg-primary/10 hover:shadow-glow-primary-hover disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2 bg-transparent border border-secondary text-secondary rounded-md font-medium text-sm transition-all duration-200 hover:bg-secondary/10 hover:shadow-glow-secondary-hover disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-secondary focus:ring-offset-1 focus:ring-offset-background;
+  }
+
+  .input {
+    @apply block w-full bg-[#030308] border border-border rounded-md py-2 px-3 text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors focus:shadow-glow-primary-sm;
+  }
+
+  .textarea {
+    @apply block w-full bg-[#030308] border border-border rounded-md py-2 px-3 text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors focus:shadow-glow-primary-sm resize-y;
+  }
+
+  .nav-link {
+    @apply flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors text-text-muted hover:text-text hover:bg-[#101025];
+  }
+
+  .nav-link.active {
+    @apply text-primary bg-primary/5 border-l-2 border-primary rounded-l-none;
+  }
 }

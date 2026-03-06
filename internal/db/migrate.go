@@ -11,6 +11,14 @@ func (db *DB) Migrate(ctx context.Context) error {
 	if err := db.enableExtensions(ctx); err != nil {
 		return fmt.Errorf("failed to enable extensions: %w", err)
 	}
+	// Create auth tables first (referenced by audit logs)
+	if err := db.createAPIKeysTable(ctx); err != nil {
+		return fmt.Errorf("failed to create api_keys table: %w", err)
+	}
+
+	if err := db.createAuditLogsTable(ctx); err != nil {
+		return fmt.Errorf("failed to create audit_logs table: %w", err)
+	}
 
 	// Create memories table
 	if err := db.createMemoriesTable(ctx); err != nil {
@@ -43,6 +51,34 @@ func (db *DB) enableExtensions(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (db *DB) createAPIKeysTable(ctx context.Context) error {
+	query := `
+CREATE TABLE IF NOT EXISTS api_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    key_hash VARCHAR(64) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_used_at TIMESTAMPTZ,
+    is_revoked BOOLEAN NOT NULL DEFAULT FALSE
+)`
+	_, err := db.pool.Exec(ctx, query)
+	return err
+}
+
+func (db *DB) createAuditLogsTable(ctx context.Context) error {
+	query := `
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    api_key_id UUID REFERENCES api_keys(id),
+    action VARCHAR(50) NOT NULL,
+    namespace TEXT NOT NULL DEFAULT 'default',
+    details JSONB DEFAULT '{}'
+)`
+	_, err := db.pool.Exec(ctx, query)
+	return err
 }
 
 func (db *DB) createMemoriesTable(ctx context.Context) error {

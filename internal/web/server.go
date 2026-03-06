@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dbehnke/trindex/internal/auth"
 	"github.com/dbehnke/trindex/internal/config"
 	"github.com/dbehnke/trindex/internal/db"
 	embedclient "github.com/dbehnke/trindex/internal/embed"
@@ -30,6 +31,7 @@ var (
 type Server struct {
 	cfg        *config.Config
 	store      *memory.Store
+	auth       *auth.Service
 	httpServer *http.Server
 	router     chi.Router
 }
@@ -37,10 +39,12 @@ type Server struct {
 // NewServer creates a new web server
 func NewServer(cfg *config.Config, database *db.DB, embedClient *embedclient.Client) *Server {
 	store := memory.NewStore(database, embedClient, cfg)
+	authSvc := auth.NewService(database)
 
 	s := &Server{
 		cfg:   cfg,
 		store: store,
+		auth:  authSvc,
 	}
 
 	s.setupRouter()
@@ -83,6 +87,12 @@ func (s *Server) setupRouter() {
 			r.Post("/", s.handleCreateMemory)
 			r.Get("/{id}", s.handleGetMemory)
 			r.Delete("/{id}", s.handleDeleteMemory)
+		})
+
+		r.Route("/keys", func(r chi.Router) {
+			r.Get("/", s.handleListKeys)
+			r.Post("/", s.handleCreateKey)
+			r.Delete("/{id}", s.handleRevokeKey)
 		})
 
 		r.Post("/search", s.handleSearch)
@@ -223,6 +233,8 @@ func (s *Server) handleCreateMemory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.auth.LogAction(getAPIKeyID(r.Context()), "MEMORY_CREATE", req.Namespace, map[string]interface{}{"memory_id": mem.ID.String()})
+
 	respondJSON(w, http.StatusCreated, mem)
 }
 
@@ -243,6 +255,9 @@ func (s *Server) handleDeleteMemory(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	// For deletion, namespace isn't explicitly passed in the URL, so we log as wild or rely on the UI sending it.
+	s.auth.LogAction(getAPIKeyID(r.Context()), "MEMORY_DELETE", "unknown", map[string]interface{}{"memory_id": id.String()})
 
 	respondJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
@@ -286,6 +301,12 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	s.auth.LogAction(getAPIKeyID(r.Context()), "SEARCH", strings.Join(req.Namespaces, ","), map[string]interface{}{
+		"query": req.Query,
+		"top_k": req.TopK,
+		"found": len(results),
+	})
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"results":             results,
@@ -408,25 +429,129 @@ func (s *Server) handleMergeDuplicates(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"status": "merged"})
 }
 
+// contextKey is used for strongly typed context values
+type contextKey string
+
+const (
+	apiKeyIDContextKey contextKey = "api_key_id"
+)
+
 func (s *Server) apiKeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.cfg.HTTPAPIKey == "" {
-			next.ServeHTTP(w, r)
-			return
-		}
+		// If no master key is set and there are no keys in DB context,
+		// we still want to block unauthorized access, but we'll let
+		// the DB validation handle it below if a key is provided.
 
 		apiKey := r.Header.Get("X-API-Key")
 		if apiKey == "" {
 			apiKey = r.URL.Query().Get("api_key")
 		}
 
-		if apiKey != s.cfg.HTTPAPIKey {
-			respondError(w, http.StatusUnauthorized, "invalid or missing API key")
+		if apiKey == "" {
+			respondError(w, http.StatusUnauthorized, "missing API key")
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		ctx := r.Context()
+
+		// First check against Master Key
+		if s.cfg.HTTPAPIKey != "" && apiKey == s.cfg.HTTPAPIKey {
+			// Master key used
+			next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, apiKeyIDContextKey, nil)))
+			return
+		}
+
+		// Fallback to database API Keys
+		keyID, valid, err := s.auth.ValidateKey(ctx, apiKey)
+		if err != nil {
+			slog.Error("failed to validate api key", "error", err)
+			respondError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+
+		if !valid {
+			respondError(w, http.StatusUnauthorized, "invalid or revoked API key")
+			return
+		}
+
+		// Inject key ID into context for auditing
+		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, apiKeyIDContextKey, keyID)))
 	})
+}
+
+// getAPIKeyID extracts the authenticated Key ID from the context (nil if Master Key)
+func getAPIKeyID(ctx context.Context) *uuid.UUID {
+	val := ctx.Value(apiKeyIDContextKey)
+	if id, ok := val.(*uuid.UUID); ok {
+		return id
+	}
+	return nil
+}
+
+func (s *Server) handleListKeys(w http.ResponseWriter, r *http.Request) {
+	keys, err := s.auth.ListKeys(r.Context())
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, keys)
+}
+
+func (s *Server) handleCreateKey(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name string `json:"name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+
+	if req.Name == "" {
+		respondError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+
+	key, rawSecret, err := s.auth.CreateKey(r.Context(), req.Name)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	s.auth.LogAction(getAPIKeyID(r.Context()), "API_KEY_CREATE", "system", map[string]interface{}{"created_key_id": key.ID.String()})
+
+	// Only endpoint that returns the raw secret
+	respondJSON(w, http.StatusCreated, map[string]interface{}{
+		"key":    key,
+		"secret": rawSecret,
+	})
+}
+
+func (s *Server) handleRevokeKey(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	if idStr == "" {
+		respondError(w, http.StatusBadRequest, "key ID required")
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid key ID")
+		return
+	}
+
+	if err := s.auth.RevokeKey(r.Context(), id); err != nil {
+		if err.Error() == "API key not found" {
+			respondError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	s.auth.LogAction(getAPIKeyID(r.Context()), "API_KEY_REVOKE", "system", map[string]interface{}{"revoked_key_id": id.String()})
+
+	respondJSON(w, http.StatusOK, map[string]string{"status": "revoked"})
 }
 
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
