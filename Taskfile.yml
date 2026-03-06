@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 vars:
   BINARY: trindex
@@ -33,6 +33,13 @@ tasks:
     cmds:
       - task: build:fast
       - ./{{.BINARY}}
+
+  eval:
+    desc: Run the Cognitive Evaluation Suite using Testcontainers
+    env:
+      TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+    cmds:
+      - DOCKER_HOST=$(docker context inspect | grep Host | cut -d '"' -f 4) go run ./cmd/trindex-eval {{.CLI_ARGS}}
 
   test:
     desc: Run all tests

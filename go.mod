@@ -9,8 +9,10 @@ require (
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/pgvector/pgvector-go v0.3.0
+	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.40.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -58,7 +60,6 @@ require (
 	github.com/segmentio/encoding v0.5.3 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.6 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
@@ -73,5 +74,4 @@ require (
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

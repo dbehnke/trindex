@@ -146,6 +146,12 @@ $$ LANGUAGE plpgsql`)
 		return fmt.Errorf("failed to create function: %w", err)
 	}
 
+	// Drop if exists first
+	_, err = db.pool.Exec(ctx, `DROP TRIGGER IF EXISTS memories_updated_at ON memories;`)
+	if err != nil {
+		return fmt.Errorf("failed to drop existing trigger: %w", err)
+	}
+
 	// Create trigger
 	_, err = db.pool.Exec(ctx, `
 CREATE TRIGGER memories_updated_at

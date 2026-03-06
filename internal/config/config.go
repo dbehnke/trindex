@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -25,9 +26,10 @@ type Config struct {
 	Transport string `yaml:"transport"`
 
 	// HTTP Server (Phase 2)
-	HTTPPort   string `yaml:"http_port"`
-	HTTPHost   string `yaml:"http_host"`
-	HTTPAPIKey string `yaml:"http_api_key"`
+	HTTPPort    string   `yaml:"http_port"`
+	HTTPHost    string   `yaml:"http_host"`
+	HTTPAPIKey  string   `yaml:"http_api_key"`
+	CORSOrigins []string `yaml:"cors_origins"`
 
 	// HNSW Index Tuning
 	HNSWM              int `yaml:"hnsw_m"`
@@ -111,9 +113,10 @@ func defaultConfig() *Config {
 		Transport: "stdio",
 
 		// HTTP Server
-		HTTPPort:   "9636",
-		HTTPHost:   "0.0.0.0",
-		HTTPAPIKey: "",
+		HTTPPort:    "9636",
+		HTTPHost:    "0.0.0.0",
+		HTTPAPIKey:  "",
+		CORSOrigins: []string{"http://localhost:5173", "http://localhost:9636"},
 
 		// HNSW Index Tuning
 		HNSWM:              16,
@@ -189,6 +192,13 @@ func (c *Config) loadFromEnv() {
 	}
 	if v := os.Getenv("TRINDEX_API_KEY"); v != "" {
 		c.HTTPAPIKey = v
+	}
+	if v := os.Getenv("CORS_ORIGINS"); v != "" {
+		// allow comma separated list of origins in the env variable
+		c.CORSOrigins = strings.Split(v, ",")
+		for i, o := range c.CORSOrigins {
+			c.CORSOrigins[i] = strings.TrimSpace(o)
+		}
 	}
 
 	// HNSW Index Tuning

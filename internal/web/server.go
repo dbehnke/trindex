@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"crypto/subtle"
 	"embed"
 	"encoding/json"
 	"io/fs"
@@ -61,7 +62,7 @@ func (s *Server) setupRouter() {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   s.cfg.CORSOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		ExposedHeaders:   []string{"*"},
@@ -76,6 +77,8 @@ func (s *Server) setupRouter() {
 			slog.Debug("http request", "method", r.Method, "path", r.URL.Path, "duration", time.Since(start))
 		})
 	})
+
+	r.Use(s.securityHeadersMiddleware)
 
 	r.Get("/health", s.handleHealth)
 
@@ -438,44 +441,47 @@ const (
 
 func (s *Server) apiKeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// If no master key is set and there are no keys in DB context,
-		// we still want to block unauthorized access, but we'll let
-		// the DB validation handle it below if a key is provided.
-
 		apiKey := r.Header.Get("X-API-Key")
 		if apiKey == "" {
-			apiKey = r.URL.Query().Get("api_key")
-		}
-
-		if apiKey == "" {
-			respondError(w, http.StatusUnauthorized, "missing API key")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		ctx := r.Context()
-
-		// First check against Master Key
-		if s.cfg.HTTPAPIKey != "" && apiKey == s.cfg.HTTPAPIKey {
-			// Master key used
-			next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, apiKeyIDContextKey, nil)))
+		// First, check the master key configured in the environment
+		if subtle.ConstantTimeCompare([]byte(apiKey), []byte(s.cfg.HTTPAPIKey)) == 1 {
+			// Master key authenticated - inject an empty context marker so operations can be logged
+			ctx := context.WithValue(r.Context(), apiKeyIDContextKey, nil)
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
-		// Fallback to database API Keys
-		keyID, valid, err := s.auth.ValidateKey(ctx, apiKey)
+		// Second, fallback to querying the active database keys
+		keyID, valid, err := s.auth.ValidateKey(r.Context(), apiKey)
 		if err != nil {
-			slog.Error("failed to validate api key", "error", err)
-			respondError(w, http.StatusInternalServerError, "internal server error")
+			slog.Warn("failed to validate api key", "error", err)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		if !valid {
-			respondError(w, http.StatusUnauthorized, "invalid or revoked API key")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		// Inject key ID into context for auditing
-		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, apiKeyIDContextKey, keyID)))
+		// Inject the authenticated API Key ID into the request context
+		ctx := context.WithValue(r.Context(), apiKeyIDContextKey, keyID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// securityHeadersMiddleware injects common security and anti-sniffing headers into responses
+func (s *Server) securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:; object-src 'none'; media-src 'none'")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		next.ServeHTTP(w, r)
 	})
 }
 

@@ -8,6 +8,24 @@ Trindex is a standalone Go binary that provides persistent, semantic memory for 
 
 ## Quick Start
 
+### ⚙️ Cognitive Evaluation & Stress Testing
+
+Trindex includes a built-in, standalone CLI test suite designed to empirically prove Agent semantic recall precision under massive load.
+
+Using `testcontainers-go`, the suite spins up an ephemeral, rootless `pgvector` container. The `generator` then probabilistically creates thousands of rows of multi-tenant "semantic noise" (dense tech ops jargon) and injects specific trackable targets deep within the noise. It then executes parallel Hybrid Search (`RRF`) queries to prove that the vector and full-text search thresholds can seamlessly recall the needle in the 10,000+ vector haystack with **100% precision**.
+
+To run the agent-persona cognitive benchmark locally:
+
+```bash
+task eval
+```
+
+To run the massive generative cross-tenant stress test:
+
+```bash
+task eval -- -mode=stress -users=20 -noise=500
+```
+
 ### Prerequisites
 
 - Go 1.26+ (for building from source)
@@ -133,11 +151,13 @@ Trindex includes a built-in web interface for browsing and managing memories. Th
 ### Accessing the Web UI
 
 Once the server is running, open your browser to:
+
 ```
 http://localhost:9636
 ```
 
 The web interface provides:
+
 - **Dashboard** - Overview of memory statistics and recent activity
 - **Memory Browser** - View, search, create, and delete memories
 - **Search** - Perform semantic searches with filters
@@ -208,8 +228,9 @@ Add to `~/.config/opencode/opencode.json`:
 ```
 
 **Prerequisites:**
+
 - Start the Trindex server first: `docker compose up -d` or `./trindex server`
-- Ensure `TRINDEX_URL` points to your server (default: http://localhost:9636)
+- Ensure `TRINDEX_URL` points to your server (default: <http://localhost:9636>)
 - Set `TRINDEX_API_KEY` if your server requires authentication
 
 ### Claude Code
