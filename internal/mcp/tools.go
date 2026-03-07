@@ -62,7 +62,7 @@ type recallInput struct {
 func (s *Server) registerRecall() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "recall",
-		Description: "Retrieve memories by semantic similarity using hybrid search",
+		Description: "Retrieve memories by semantic similarity. Use this tool PROACTIVELY whenever the user asks about past interactions, personal details, or facts you do not immediately know.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in recallInput) (*mcp.CallToolResult, any, error) {
 		if in.Query == "" {
 			return &mcp.CallToolResult{
