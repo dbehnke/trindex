@@ -4,7 +4,6 @@ project_name: trindex
 before:
   hooks:
     - go mod tidy
-    - sh -c 'bash scripts/update-marketplace-version.sh $(git describe --tags --exact-match 2>/dev/null || echo "v0.0.0")'
 
 builds:
   - id: trindex
