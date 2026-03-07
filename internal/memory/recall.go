@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/pgvector/pgvector-go"
@@ -160,13 +161,26 @@ func (s *Store) vectorSearch(ctx context.Context, embedding []float32, namespace
 }
 
 func (s *Store) fullTextSearch(ctx context.Context, query string, namespaces []string, limit int) (map[uuid.UUID]float64, error) {
-	// Convert query to tsquery format
-	tsquery := query + ":*"
+	// Clean and split the query into words
+	words := strings.Fields(query)
+	if len(words) == 0 {
+		return make(map[uuid.UUID]float64), nil
+	}
+
+	// Join with OR operator and add prefix matching
+	// e.g., "dog pet animal" -> "dog:* | pet:* | animal:*"
+	for i, word := range words {
+		// Basic sanitization to prevent tsquery syntax errors
+		word = strings.ReplaceAll(word, "'", "''")
+		word = strings.ReplaceAll(word, "\\", "")
+		words[i] = word + ":*"
+	}
+	tsquery := strings.Join(words, " | ")
 
 	sql := `
-		SELECT id, ts_rank(search_vec, plainto_tsquery('english', $1)) AS rank
+		SELECT id, ts_rank(search_vec, to_tsquery('english', $1)) AS rank
 		FROM memories
-		WHERE search_vec @@ plainto_tsquery('english', $1)
+		WHERE search_vec @@ to_tsquery('english', $1)
 		  AND namespace = ANY($2)
 		ORDER BY rank DESC
 		LIMIT $3
