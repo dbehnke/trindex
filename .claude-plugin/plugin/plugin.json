@@ -1,6 +1,6 @@
 {
   "name": "trindex",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Persistent semantic memory for AI agents via MCP. Stores and recalls memories using hybrid vector + full-text search (pgvector + Postgres). Proxies to a running trindex server.",
   "author": {
     "name": "Dave Behnke"
