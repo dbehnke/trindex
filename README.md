@@ -211,6 +211,10 @@ export TRINDEX_API_KEY=your-secret-key
 ./trindex mcp
 ```
 
+### Namespace Defaults
+
+Trindex natively supports multi-tenant isolation via Namespaces. By default, the Trindex MCP tool schemas will explicitly instruct connected AI Agents (OpenCode, Claude Code, Cursor, etc.) to store and recall memories using the `default` namespace unless they are explicitly told otherwise in your system conventions or prompts.
+
 ### opencode
 
 Add to `~/.config/opencode/opencode.json`:
