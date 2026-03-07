@@ -268,9 +268,10 @@ func (s *Store) fetchMemoriesByIDs(ctx context.Context, ids []uuid.UUID, filter 
 	}
 
 	query := `
-		SELECT id, namespace, content, metadata, created_at, updated_at
+		SELECT id, namespace, content, content_hash, metadata, ttl_seconds, expires_at, created_at, updated_at
 		FROM memories
 		WHERE id = ANY($1)
+		  AND (expires_at IS NULL OR expires_at > NOW())
 	`
 	args := []interface{}{ids}
 	argIdx := 2

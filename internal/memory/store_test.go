@@ -315,3 +315,187 @@ func TestStore_Recall(t *testing.T) {
 		}
 	}
 }
+
+func TestStore_CreateWithParams_Deduplication(t *testing.T) {
+	store, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	content := "This is a unique memory for dedup testing"
+	namespace := "dedup-test"
+
+	mem1, err := store.CreateWithParams(ctx, CreateParams{
+		Content:   content,
+		Namespace: namespace,
+		Metadata:  map[string]interface{}{"test": "value"},
+	})
+	if err != nil {
+		t.Fatalf("Failed to create first memory: %v", err)
+	}
+
+	mem2, err := store.CreateWithParams(ctx, CreateParams{
+		Content:   content,
+		Namespace: namespace,
+		Metadata:  map[string]interface{}{"test": "different"},
+	})
+	if err != nil {
+		t.Fatalf("Failed to create second memory: %v", err)
+	}
+
+	if mem1.ID != mem2.ID {
+		t.Error("expected duplicate content to return existing memory")
+	}
+
+	if mem2.ContentHash == "" {
+		t.Error("expected content_hash to be set")
+	}
+}
+
+func TestStore_CreateWithParams_TTL(t *testing.T) {
+	store, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	mem, err := store.CreateWithParams(ctx, CreateParams{
+		Content:    "Memory with TTL",
+		Namespace:  "ttl-test",
+		TTLSeconds: 3600,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create memory with TTL: %v", err)
+	}
+
+	if mem.TTLSeconds != 3600 {
+		t.Errorf("expected TTLSeconds to be 3600, got %d", mem.TTLSeconds)
+	}
+
+	if mem.ExpiresAt == nil {
+		t.Fatal("expected ExpiresAt to be set")
+	}
+
+	expectedExpiry := time.Now().Add(3600 * time.Second)
+	if mem.ExpiresAt.Before(expectedExpiry.Add(-5*time.Second)) || mem.ExpiresAt.After(expectedExpiry.Add(5*time.Second)) {
+		t.Errorf("expected expiry around %v, got %v", expectedExpiry, mem.ExpiresAt)
+	}
+}
+
+func TestStore_CreateWithParams_NoTTL(t *testing.T) {
+	store, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	mem, err := store.CreateWithParams(ctx, CreateParams{
+		Content:   "Memory without TTL",
+		Namespace: "no-ttl-test",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create memory: %v", err)
+	}
+
+	if mem.ExpiresAt != nil {
+		t.Error("expected ExpiresAt to be nil when no TTL specified")
+	}
+
+	if mem.TTLSeconds != 0 {
+		t.Errorf("expected TTLSeconds to be 0, got %d", mem.TTLSeconds)
+	}
+}
+
+func TestStore_DeleteExpired(t *testing.T) {
+	store, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	mem, err := store.CreateWithParams(ctx, CreateParams{
+		Content:    "Memory that will expire",
+		Namespace:  "expire-test",
+		TTLSeconds: 1,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create memory: %v", err)
+	}
+
+	_, err = store.GetByID(ctx, mem.ID)
+	if err != nil {
+		t.Fatalf("Should be able to retrieve memory before expiry: %v", err)
+	}
+
+	time.Sleep(2 * time.Second)
+
+	deleted, err := store.DeleteExpired(ctx)
+	if err != nil {
+		t.Fatalf("Failed to delete expired memories: %v", err)
+	}
+
+	if deleted < 1 {
+		t.Errorf("expected at least 1 expired memory deleted, got %d", deleted)
+	}
+
+	_, err = store.GetByID(ctx, mem.ID)
+	if err == nil {
+		t.Error("expected memory to be deleted after expiry")
+	}
+}
+
+func TestStore_Recall_FiltersExpired(t *testing.T) {
+	store, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err := store.CreateWithParams(ctx, CreateParams{
+		Content:    "Unique content for expired recall test",
+		Namespace:  "expired-recall-test",
+		TTLSeconds: 1,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create memory: %v", err)
+	}
+
+	time.Sleep(2 * time.Second)
+
+	params := RecallParams{
+		Query:      "unique content expired recall",
+		Namespaces: []string{"expired-recall-test"},
+		TopK:       5,
+		Threshold:  0.01,
+	}
+
+	results, err := store.Recall(ctx, params)
+	if err != nil {
+		t.Fatalf("Recall failed: %v", err)
+	}
+
+	for _, r := range results {
+		if r.Namespace == "expired-recall-test" {
+			t.Error("expected expired memories to be filtered from recall results")
+		}
+	}
+}
+
+func TestComputeContentHash(t *testing.T) {
+	hash1 := computeContentHash("test content")
+	hash2 := computeContentHash("test content")
+	hash3 := computeContentHash("different content")
+
+	if hash1 != hash2 {
+		t.Error("same content should produce same hash")
+	}
+
+	if hash1 == hash3 {
+		t.Error("different content should produce different hash")
+	}
+
+	if len(hash1) != 64 {
+		t.Errorf("expected SHA256 hash length of 64, got %d", len(hash1))
+	}
+}

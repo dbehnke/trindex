@@ -2,6 +2,8 @@ package mcp
 
 import (
 	"context"
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/dbehnke/trindex/internal/memory"
@@ -9,17 +11,18 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// rememberInput represents the input for the remember tool
 type rememberInput struct {
-	Content   string                 `json:"content" jsonschema:"The memory text to store. Write 1-3 concise sentences that state the fact directly. Good candidates: decisions made, user preferences, patterns discovered, task outcomes, architectural choices, bug root causes. Avoid trivial or ephemeral facts."`
-	Namespace string                 `json:"namespace,omitempty" jsonschema:"Scope for this memory. Use 'global' for cross-agent user facts (preferences, identity, persistent context). Use a project namespace (e.g. 'trindex', 'myapp') for task-specific memories. Use 'default' when unsure."`
-	Metadata  map[string]interface{} `json:"metadata,omitempty" jsonschema:"Arbitrary key/value tags. Recommended fields: type (e.g. 'decision', 'preference', 'pattern', 'bug', 'outcome'), tags ([]string), agent (agent name), project (project name), source (e.g. 'session', 'user-statement')."`
+	Content                string                 `json:"content" jsonschema:"The memory text to store. Write 1-3 concise sentences that state the fact directly. Good candidates: decisions made, user preferences, patterns discovered, task outcomes, architectural choices, bug root causes. Avoid trivial or ephemeral facts."`
+	Namespace              string                 `json:"namespace,omitempty" jsonschema:"Scope for this memory. Use 'global' for cross-agent user facts (preferences, identity, persistent context). Use a project namespace (e.g. 'trindex', 'myapp') for task-specific memories. Use 'default' when unsure. Follow hierarchical convention: global > project:{name} > agent:{name} > session:{id}."`
+	Metadata               map[string]interface{} `json:"metadata,omitempty" jsonschema:"Arbitrary key/value tags. Recommended fields: type (e.g. 'decision', 'preference', 'pattern', 'bug', 'outcome'), tags ([]string), agent (agent name), project (project name), source (e.g. 'session', 'user-statement')."`
+	SkipDuplicateThreshold float64                `json:"skip_duplicate_threshold,omitempty" jsonschema:"Similarity threshold (0.0-1.0) for deduplication. If a memory with similarity >= threshold exists in the same namespace, skip storing. Use 0.95 for exact duplicates, 0.85 for semantic duplicates. Set to 0 to disable (default)."`
+	TTLSeconds             int32                  `json:"ttl_seconds,omitempty" jsonschema:"Time-to-live in seconds. Memory will be automatically deleted after this duration. Use for ephemeral context like session IDs, temporary files, transient errors. session:* namespaces default to 86400 (24h)."`
 }
 
 func (s *Server) registerRemember() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "remember",
-		Description: "Store a memory with optional namespace and metadata. Call this after making a significant decision, learning a user preference, identifying a recurring pattern, completing a task, or discovering a bug root cause. Write content as 1-3 concise sentences stating the fact directly. Use namespace 'global' for cross-agent user facts; use a project-specific namespace for task-specific memories; use 'default' when unsure. Include metadata fields like type, tags, agent, and project to make memories easier to filter later.",
+		Description: "Store a memory with optional namespace and metadata. Call this after making a significant decision, learning a user preference, identifying a recurring pattern, completing a task, or discovering a bug root cause. Write content as 1-3 concise sentences stating the fact directly. Use namespace 'global' for cross-agent user facts; use a project-specific namespace for task-specific memories; use 'default' when unsure. Include metadata fields like type, tags, agent, and project to make memories easier to filter later. Use skip_duplicate_threshold to avoid storing duplicates (0.95 for exact, 0.85 for semantic matches).",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in rememberInput) (*mcp.CallToolResult, any, error) {
 		if in.Content == "" {
 			return &mcp.CallToolResult{
@@ -27,7 +30,38 @@ func (s *Server) registerRemember() {
 			}, nil, nil
 		}
 
-		mem, err := s.store.Create(ctx, in.Content, in.Namespace, in.Metadata)
+		namespace := in.Namespace
+		if namespace == "" {
+			namespace = s.cfg.DefaultNamespace
+		}
+
+		ttlSeconds := in.TTLSeconds
+		if ttlSeconds == 0 && strings.HasPrefix(namespace, "session:") {
+			ttlSeconds = 86400
+		}
+
+		if in.SkipDuplicateThreshold > 0 {
+			duplicate, err := s.checkDuplicate(ctx, in.Content, namespace, in.SkipDuplicateThreshold)
+			if err != nil {
+				slog.Warn("deduplication check failed", "error", err)
+			} else if duplicate != nil {
+				return &mcp.CallToolResult{
+					Content: successResult(map[string]interface{}{
+						"status":      "duplicate_skipped",
+						"existing_id": duplicate.ID,
+						"namespace":   duplicate.Namespace,
+						"similarity":  duplicate.Score,
+					}),
+				}, nil, nil
+			}
+		}
+
+		mem, err := s.store.CreateWithParams(ctx, memory.CreateParams{
+			Content:    in.Content,
+			Namespace:  namespace,
+			Metadata:   in.Metadata,
+			TTLSeconds: ttlSeconds,
+		})
 		if err != nil {
 			return &mcp.CallToolResult{
 				Content: errorResult("EMBED_FAILED", err.Error()),
@@ -35,14 +69,36 @@ func (s *Server) registerRemember() {
 		}
 
 		result := map[string]interface{}{
-			"id":         mem.ID,
-			"namespace":  mem.Namespace,
-			"metadata":   mem.Metadata,
-			"created_at": mem.CreatedAt,
+			"id":           mem.ID,
+			"namespace":    mem.Namespace,
+			"metadata":     mem.Metadata,
+			"created_at":   mem.CreatedAt,
+			"expires_at":   mem.ExpiresAt,
+			"content_hash": mem.ContentHash,
 		}
 
 		return &mcp.CallToolResult{Content: successResult(result)}, nil, nil
 	})
+}
+
+func (s *Server) checkDuplicate(ctx context.Context, content, namespace string, threshold float64) (*memory.RecallResult, error) {
+	params := memory.RecallParams{
+		Query:      content,
+		Namespaces: []string{namespace},
+		TopK:       1,
+		Threshold:  threshold,
+	}
+
+	results, err := s.store.Recall(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(results) > 0 && results[0].Score >= threshold {
+		return &results[0], nil
+	}
+
+	return nil, nil
 }
 
 // recallInput represents the input for the recall tool

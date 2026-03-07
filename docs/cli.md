@@ -297,6 +297,8 @@ trindex memories create [flags]
 | `--metadata key=value` | Metadata key-value | - |
 | `--file PATH` | Read content from file | - |
 | `--json` | Output as JSON | false |
+| `--skip-duplicate-threshold 0.0-1.0` | Skip if similar memory exists | - |
+| `--ttl-seconds N` | Time-to-live in seconds (0 = no expiry) | 0 |
 
 **Example:**
 
@@ -313,6 +315,18 @@ trindex memories create \
 
 # Create from file
 trindex memories create --file notes.txt --namespace research
+
+# Create with deduplication (skip if 95% similar content exists)
+trindex memories create \
+  --content "Architecture decision: using PostgreSQL" \
+  --namespace project:myapp \
+  --skip-duplicate-threshold 0.95
+
+# Create with TTL (expires after 1 hour)
+trindex memories create \
+  --content "Temporary debugging notes" \
+  --namespace session:debug-123 \
+  --ttl-seconds 3600
 ```
 
 #### memories delete
@@ -512,6 +526,37 @@ Trindex can be configured via environment variables. These can also be set in a 
 | `HNSW_M` | HNSW M parameter | 16 |
 | `HNSW_EF_CONSTRUCTION` | HNSW ef_construction | 64 |
 | `HNSW_EF_SEARCH` | HNSW ef_search | 40 |
+
+### Observability
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LOG_LEVEL` | Log level (debug/info/warn/error) | info |
+| `LOG_FORMAT` | Log format (json/text) | json |
+
+### TTL and Deduplication
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DEFAULT_SESSION_TTL` | Default TTL for session namespaces (seconds) | 86400 (24h) |
+| `DEFAULT_DEDUP_THRESHOLD` | Default deduplication threshold (0.0-1.0) | 0.95 |
+
+### Database Connection Pool
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DB_MAX_CONNS` | Maximum database connections | 25 |
+| `DB_MIN_CONNS` | Minimum database connections | 5 |
+| `DB_MAX_CONN_LIFETIME_MINUTES` | Maximum connection lifetime | 60 |
+| `DB_MAX_CONN_IDLE_TIME_MINUTES` | Maximum idle connection time | 30 |
+
+### Embedding Client
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `EMBED_MAX_RETRIES` | Maximum embedding retries | 3 |
+| `EMBED_RETRY_DELAY_MS` | Retry delay in milliseconds | 1000 |
+| `EMBED_REQUEST_TIMEOUT_SEC` | Request timeout in seconds | 30 |
 
 ## Configuration File
 
