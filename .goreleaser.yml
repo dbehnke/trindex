@@ -22,11 +22,7 @@ builds:
       - arm64
 
 archives:
-  - format: tar.gz
-    name_template: "trindex_{{ .Os }}_{{ .Arch }}"
-    format_overrides:
-      - goos: windows
-        format: zip
+  - name_template: "trindex_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: "checksums.txt"
