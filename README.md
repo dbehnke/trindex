@@ -6,6 +6,18 @@ Persistent semantic memory for AI agents via MCP (Model Context Protocol).
 
 Trindex is a standalone Go binary that provides persistent, semantic memory for AI agents. It stores memories as vectors in Postgres with pgvector, enabling semantic search and hybrid retrieval (vector + full-text search).
 
+### Key Features
+
+- **🔍 Hybrid Search** — Combines vector similarity (cosine) with full-text search (tsvector), fused with Reciprocal Rank Fusion (RRF)
+- **🏷️ Hierarchical Namespaces** — Organized scoping: `global > project:{name} > agent:{name} > session:{id}`
+- **🧠 Context Window Ranking** — Intelligent memory ranking for LLM prompts (relevance + recency + importance)
+- **🛂 Context Passport** — Cross-system context transfer (Linear, GitHub, agent handoff)
+- **🔄 Deduplication** — Client-side (threshold-based) and server-side (content hash) duplicate prevention
+- **⏰ TTL Support** — Time-to-live for temporary memories with automatic cleanup
+- **🌐 Multi-Agent** — Share one memory server across multiple AI agents (OpenCode, Claude Code, Cursor, etc.)
+- **🖥️ Web UI** — Built-in Vue.js interface for browsing and managing memories
+- **🔌 MCP Native** — Works with any MCP-compatible agent via stdio transport
+
 ## Quick Start
 
 ### ⚙️ Cognitive Evaluation & Stress Testing
@@ -171,6 +183,79 @@ The web interface provides:
 - Namespace filtering
 - Similarity-based search results
 
+## Advanced Features
+
+### Deduplication
+
+Trindex provides both client-side and server-side deduplication:
+
+**Client-side (threshold-based):**
+```bash
+# Skip if similar content already exists
+# 0.95 = exact match (content hash), 0.85 = semantic similarity
+./trindex memories create \
+  --content "Architecture decision: using PostgreSQL" \
+  --namespace project:myapp \
+  --metadata skip_duplicate_threshold=0.95
+```
+
+**Server-side (content hash):**
+- Automatically prevents identical content in the same namespace
+- Uses SHA-256 hash of normalized content
+- Backward compatible with existing memories
+
+### TTL (Time-To-Live)
+
+Set expiration for temporary memories:
+
+```bash
+# Expires after 1 hour (3600 seconds)
+./trindex memories create \
+  --content "Temporary debugging notes" \
+  --namespace session:debug-123 \
+  --metadata ttl_seconds=3600
+```
+
+**Session namespaces** (`session:*`) automatically get 24-hour TTL unless overridden.
+
+### Context Window Ranking
+
+Build optimized context windows for LLM prompts with intelligent ranking:
+
+```go
+// Rank memories by relevance (50%) + recency (30%) + importance (20%)
+window, err := memory.BuildContextWindow(ctx, "auth implementation", 
+    []string{"project:myapp"}, memory.ContextWindowOptions{
+        MaxTokens: 4000,
+        TopK: 20,
+    })
+```
+
+**Ranking factors:**
+- **Relevance**: Hybrid search similarity score
+- **Recency**: Time decay with 24h half-life (newer = higher)
+- **Importance**: Type-based boost (decision > bug > outcome > pattern)
+
+### Context Passport
+
+Transfer context between AI systems:
+
+```go
+// Export context for handoff to GitHub issue
+passport, _ := memory.CreatePassport(ctx, memory.PassportParams{
+    SourceNamespace: "project:trindex",
+    TargetSystem:    "github:issue-123",
+    Query:           "deduplication implementation",
+    MaxMemories:     10,
+    TTLHours:        24,
+})
+
+// Import in target system
+imported, _ := memory.ImportPassport(ctx, passportJSON, memory.ImportOptions{
+    TargetNamespace: "github:issue-123",
+})
+```
+
 ## MCP Client/Server Architecture
 
 Trindex uses a **client/server** model for MCP integration:
@@ -214,6 +299,33 @@ export TRINDEX_API_KEY=your-secret-key
 ### Namespace Defaults
 
 Trindex natively supports multi-tenant isolation via Namespaces. By default, the Trindex MCP tool schemas will explicitly instruct connected AI Agents (OpenCode, Claude Code, Cursor, etc.) to store and recall memories using the `default` namespace unless they are explicitly told otherwise in your system conventions or prompts.
+
+### Hierarchical Namespace Convention
+
+Namespaces follow a hierarchical convention for clear scoping:
+
+```
+global > project:{name} > agent:{name} > session:{id}
+```
+
+| Namespace | Purpose | Auto-searched |
+|-----------|---------|---------------|
+| `global` | Cross-agent facts (preferences, identity) | **Always** |
+| `project:{name}` | Project-specific knowledge | No |
+| `agent:{name}` | Agent-specific optimizations | No |
+| `session:{id}` | Ephemeral context (auto-expires 24h) | No |
+
+**Examples:**
+```bash
+# Global user preference (available to all agents)
+./trindex memories create --content "User prefers dark mode" --namespace global
+
+# Project-specific architecture decision
+./trindex memories create --content "Using pgvector with HNSW" --namespace project:trindex
+
+# Session debugging info (auto-expires in 24h)
+./trindex memories create --content "Error when dimensions mismatch" --namespace session:debug-123
+```
 
 ### opencode
 

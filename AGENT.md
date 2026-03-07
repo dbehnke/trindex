@@ -38,6 +38,8 @@ Trindex is architecturally inspired by Nate B. Jones's **OpenBrain** guide (Post
 
 ## Environment Configuration
 
+### Core Settings
+
 ```env
 # Postgres
 DATABASE_URL=postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable
@@ -46,29 +48,70 @@ DATABASE_URL=postgres://trindex:trindex@localhost:5432/trindex?sslmode=disable
 EMBED_BASE_URL=http://localhost:11434/v1
 EMBED_MODEL=nomic-embed-text
 EMBED_API_KEY=ollama
-EMBED_DIMENSIONS=1536
+EMBED_DIMENSIONS=768
 
 # MCP
 TRANSPORT=stdio
+```
 
-# HNSW index tuning
-HNSW_M=16
-HNSW_EF_CONSTRUCTION=64
-HNSW_EF_SEARCH=40
+### Search Configuration
+
+```env
+# Hybrid search weights (must sum to 1.0)
+HYBRID_VECTOR_WEIGHT=0.7        # Vector search weight
+HYBRID_FTS_WEIGHT=0.3           # Full-text search weight
 
 # Recall defaults
 DEFAULT_NAMESPACE=default
 DEFAULT_TOP_K=10
 DEFAULT_SIMILARITY_THRESHOLD=0.7
 
-# Phase 2 (HTTP/SSE + Web UI)
-# HTTP_PORT=9636
-# HTTP_HOST=0.0.0.0
+# HNSW index tuning
+HNSW_M=16
+HNSW_EF_CONSTRUCTION=64
+HNSW_EF_SEARCH=40
+```
+
+### TTL and Deduplication
+
+```env
+# Default TTL for session namespaces (seconds)
+DEFAULT_SESSION_TTL=86400       # 24 hours
+
+# Deduplication threshold (0.0-1.0, higher = more strict)
+DEFAULT_DEDUP_THRESHOLD=0.95    # 0.95 for exact, 0.85 for semantic
+```
+
+### HTTP Server (Phase 2)
+
+```env
+HTTP_HOST=0.0.0.0
+HTTP_PORT=9636
+TRINDEX_API_KEY=change-me-in-production
+```
+
+### Database Connection Pool
+
+```env
+DB_MAX_CONNS=25
+DB_MIN_CONNS=5
+DB_MAX_CONN_LIFETIME_MINUTES=60
+DB_MAX_CONN_IDLE_TIME_MINUTES=30
+```
+
+### Embedding Client
+
+```env
+EMBED_MAX_RETRIES=3
+EMBED_RETRY_DELAY_MS=1000
+EMBED_REQUEST_TIMEOUT_SEC=30
 ```
 
 ---
 
 ## Database Schema
+
+### Current Schema (v2)
 
 ```sql
 -- Enable extensions
@@ -77,14 +120,17 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Memories table
 CREATE TABLE IF NOT EXISTS memories (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    namespace   TEXT NOT NULL DEFAULT 'default',
-    content     TEXT NOT NULL,
-    embedding   VECTOR(1536),
-    metadata    JSONB DEFAULT '{}',
-    search_vec  TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', content)) STORED,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    namespace    TEXT NOT NULL DEFAULT 'default',
+    content      TEXT NOT NULL,
+    content_hash TEXT NOT NULL,                    -- NEW: SHA-256 hash for deduplication
+    embedding    VECTOR(1536),
+    metadata     JSONB DEFAULT '{}',
+    search_vec   TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', content)) STORED,
+    ttl_seconds  INTEGER DEFAULT 0,                -- NEW: TTL in seconds (0 = no expiry)
+    expires_at   TIMESTAMPTZ,                      -- NEW: Expiration timestamp
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- HNSW vector index (cosine distance)
@@ -105,9 +151,24 @@ CREATE INDEX IF NOT EXISTS memories_metadata_idx
 CREATE INDEX IF NOT EXISTS memories_namespace_idx
     ON memories (namespace);
 
--- Timestamp index
+-- Content hash index for deduplication
+CREATE INDEX IF NOT EXISTS memories_content_hash_idx
+    ON memories (namespace, content_hash);
+
+-- Expiration index for cleanup
+CREATE INDEX IF NOT EXISTS memories_expires_at_idx
+    ON memories (expires_at) WHERE expires_at IS NOT NULL;
+
+-- Timestamp indexes
 CREATE INDEX IF NOT EXISTS memories_created_at_idx
     ON memories (created_at DESC);
+CREATE INDEX IF NOT EXISTS memories_updated_at_idx
+    ON memories (updated_at DESC);
+
+-- Partial index for non-expired memories (optimization)
+CREATE INDEX IF NOT EXISTS memories_active_idx
+    ON memories (namespace, created_at DESC)
+    WHERE expires_at IS NULL OR expires_at > NOW();
 
 -- Auto-update updated_at
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -119,6 +180,21 @@ CREATE TRIGGER memories_updated_at
     BEFORE UPDATE ON memories
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 ```
+
+### Schema Migration Notes
+
+**From v1 to v2:**
+- Added `content_hash` (TEXT, NOT NULL) - SHA-256 hash of content
+- Added `ttl_seconds` (INTEGER, DEFAULT 0) - TTL configuration
+- Added `expires_at` (TIMESTAMPTZ, nullable) - Expiration timestamp
+- Added composite index on `(namespace, content_hash)` for deduplication
+- Added index on `expires_at` for cleanup queries
+- Added partial index for active (non-expired) memories
+
+The migration is backward-compatible. Existing memories will have:
+- `content_hash` computed from existing content
+- `ttl_seconds` = 0 (no expiry)
+- `expires_at` = NULL (no expiry)
 
 ---
 
@@ -138,9 +214,11 @@ trindex/
 │   ├── embed/
 │   │   └── client.go                # OpenAI-compatible embeddings client
 │   ├── memory/
-│   │   ├── store.go                 # Remember, forget, list
+│   │   ├── store.go                 # Remember, forget, list, CreateWithParams
 │   │   ├── recall.go                # Hybrid search (vector + FTS + RRF)
-│   │   └── stats.go                 # Stats queries
+│   │   ├── stats.go                 # Stats queries
+│   │   ├── context_window.go        # Context window ranking for LLM prompts
+│   │   └── passport.go              # Cross-system context transfer
 │   ├── mcp/
 │   │   ├── server.go                # MCP server setup, tool registration
 │   │   └── tools.go                 # Tool handler implementations
@@ -164,14 +242,53 @@ trindex/
 ## MCP Tools
 
 ### `remember`
-Store a memory with optional namespace and metadata.
+
+Store a memory with optional namespace, metadata, deduplication, and TTL.
 
 **Input:**
 ```json
 {
   "content": "string (required) — the memory text to store",
   "namespace": "string (optional, default: 'default') — scope for this memory",
-  "metadata": "object (optional) — arbitrary key/value tags: { agent, project, tags[], source, type }"
+  "metadata": "object (optional) — arbitrary key/value tags: { agent, project, tags[], source, type }",
+  "skip_duplicate_threshold": "float (optional) — skip if similar memory exists (0.0-1.0, 0.95 for exact, 0.85 for semantic)",
+  "ttl_seconds": "int (optional) — time-to-live in seconds (0 = no expiry, session:* namespaces default to 24h)"
+}
+```
+
+**Behavior:**
+- Generate embedding and store to Postgres in parallel via goroutines
+- Embedding call and DB insert happen concurrently where possible
+- **Deduplication**: If `skip_duplicate_threshold` is set, check for existing similar memories first
+  - Uses content hash for exact matches (threshold >= 0.95)
+  - Uses semantic similarity for fuzzy matches
+  - Returns existing memory ID if duplicate found
+- **TTL Support**: Set expiration for temporary memories
+  - Session namespaces (`session:*`) default to 24 hours (86400 seconds)
+  - Other namespaces default to no expiry
+  - Expired memories are filtered from recall results
+- Returns structured confirmation: id, namespace, metadata extracted, timestamp, skipped status
+
+**Response (new memory):**
+```json
+{
+  "id": "uuid",
+  "namespace": "default",
+  "metadata": { "agent": "opencode", "tags": ["architecture"] },
+  "created_at": "2026-03-03T12:00:00Z",
+  "expires_at": "2026-03-04T12:00:00Z"
+}
+```
+
+**Response (duplicate found):**
+```json
+{
+  "id": "existing-uuid",
+  "namespace": "default",
+  "skipped": true,
+  "reason": "duplicate_content",
+  "similarity": 0.98,
+  "created_at": "2026-03-02T10:00:00Z"
 }
 ```
 
@@ -216,6 +333,7 @@ Retrieve memories by semantic similarity using hybrid search.
 - Run vector search (cosine similarity via HNSW) in parallel with FTS search (tsvector)
 - Fuse results using Reciprocal Rank Fusion (RRF)
 - Always include `global` namespace in addition to requested namespaces
+- **Expiration filtering**: Automatically exclude expired memories (where `expires_at < NOW()`)
 - Apply metadata filters via JSONB queries after retrieval
 - Return results ranked by fused score
 
@@ -324,22 +442,190 @@ Memories that appear in both lists score significantly higher. Memories that onl
 
 ---
 
+## Advanced Features
+
+### Context Window Ranking
+
+Build an optimized context window for LLM prompts with intelligent ranking and token budget management.
+
+**Purpose:** When working with limited context windows, not all memories are equally valuable. This feature ranks memories by relevance, recency, and importance to build the most useful context.
+
+**Ranking Algorithm:**
+
+```
+final_score = (relevance_score * 0.5) + (recency_score * 0.3) + (type_boost * 0.2)
+```
+
+Where:
+- **Relevance** (50%): Hybrid search similarity score (RRF)
+- **Recency** (30%): Time decay function (newer = higher)
+  - `recency_score = 1 / (1 + hours_ago/24)` — 24h half-life
+- **Type Boost** (20%): Importance based on metadata type
+  - `decision`: +0.3 boost
+  - `bug`: +0.25 boost
+  - `outcome`: +0.2 boost
+  - `pattern`: +0.15 boost
+  - `preference`: +0.1 boost
+
+**Usage:**
+
+```go
+// Build context window with 4000 token budget
+window, err := memory.BuildContextWindow(ctx, "query about auth", []string{"project:myapp"}, 
+    memory.ContextWindowOptions{
+        MaxTokens: 4000,
+        TopK: 20,
+        Threshold: 0.5,
+    })
+
+// Results ordered by final_score, truncated to fit token budget
+for _, item := range window.Items {
+    fmt.Printf("[%s] %s (score: %.3f, tokens: %d)\n", 
+        item.Memory.Namespace, item.Memory.Content, item.Score, item.Tokens)
+}
+fmt.Printf("Total: %d items, %d tokens\n", len(window.Items), window.TotalTokens)
+```
+
+### Context Passport Pattern
+
+Transfer context between AI systems (Linear, GitHub, different agents) using a portable context package.
+
+**Purpose:** When an AI agent needs to hand off work to another system or resume work in a different context, the passport pattern preserves relevant memories.
+
+**Structure:**
+
+```json
+{
+  "version": "1.0",
+  "source": "project:trindex",
+  "target": "github:issue-123",
+  "created_at": "2026-03-07T12:00:00Z",
+  "expires_at": "2026-03-08T12:00:00Z",
+  "summary": "Working on deduplication feature implementation",
+  "key_facts": [
+    "Content hash is SHA-256 of normalized content",
+    "Session namespaces default to 24h TTL"
+  ],
+  "decisions": [
+    {
+      "content": "Use 0.95 threshold for exact dedup, 0.85 for semantic",
+      "rationale": "Balances precision vs recall for different use cases"
+    }
+  ],
+  "memory_refs": [
+    {"id": "uuid-1", "namespace": "project:trindex", "content": "..."}
+  ],
+  "metadata": {
+    "agent": "claude-code",
+    "session_id": "debug-2026-03-07",
+    "tags": ["dedup", "phase-2"]
+  }
+}
+```
+
+**Usage:**
+
+```go
+// Create passport for handoff
+passport, err := memory.CreatePassport(ctx, memory.PassportParams{
+    SourceNamespace: "project:trindex",
+    TargetSystem: "github:issue-123",
+    Query: "deduplication implementation decisions",
+    MaxMemories: 10,
+    TTLHours: 24,
+})
+
+// Serialize for transfer
+jsonData, _ := json.Marshal(passport)
+// Send to other system...
+
+// Import in target system
+imported, err := memory.ImportPassport(ctx, jsonData, memory.ImportOptions{
+    TargetNamespace: "github:issue-123",
+    PreserveTTL: true,
+})
+```
+
+---
+
 ## Namespace Design
 
+### Hierarchical Namespace Convention
+
+Namespaces follow a **hierarchical convention** for clear scoping and automatic inheritance:
+
+```
+global > project:{name} > agent:{name} > session:{id}
+```
+
+| Namespace | Purpose | Auto-searched |
+|-----------|---------|---------------|
+| `global` | Cross-agent user facts: preferences, identity, persistent personal context | **Always** |
+| `project:{name}` | Project-specific memories: architecture, decisions, patterns | No |
+| `agent:{name}` | Agent-specific learnings and optimizations | No |
+| `session:{id}` | Ephemeral session context (auto-expires after 24h) | No |
+| `default` | Fallback when no project context is clear | No |
+
+### Namespace Selection Rules
+
+1. **Use `global`** for cross-cutting user facts that any agent should know:
+   - User preferences ("User prefers dark mode")
+   - Identity facts ("User's name is Dave")
+   - Persistent personal context
+
+2. **Use `project:{name}`** for project-specific knowledge:
+   - Architecture decisions
+   - Code patterns discovered
+   - Bug root causes
+   - Implementation notes
+   - Example: `project:trindex`, `project:myapp`
+
+3. **Use `agent:{name}`** for agent-specific optimizations:
+   - Tool usage patterns
+   - Agent-specific shortcuts
+   - Learned behaviors
+   - Example: `agent:claude-code`, `agent:opencode`
+
+4. **Use `session:{id}`** for temporary context (auto-expires in 24h):
+   - Current debugging session
+   - Temporary file paths
+   - Transient errors
+   - Example: `session:debug-2026-03-07`
+
+5. **Avoid `default`** — be explicit about scope when possible.
+
+### Recall Behavior
+
 - Every memory has a `namespace` string (default: `"default"`)
-- The `global` namespace is always searched in recall, regardless of what namespaces are requested
+- The `global` namespace is **always** searched in recall, regardless of what namespaces are requested
 - Agents should write project-specific memories to their own namespace
 - Cross-cutting facts (user preferences, personal context) should go in `global`
 - Orchestrators can pass multiple namespaces to cast a wide net
 
-**Suggested namespace conventions:**
-```
-global          — always searched, cross-agent facts
-default         — fallback when no namespace specified
-opencode        — opencode agent session memories
-trinity         — Trinity orchestrator memories
-stellar-breach  — project-specific memories
-personal        — personal context and preferences
+### Example Usage
+
+```json
+// Store user preference (cross-agent)
+{
+  "content": "User prefers dark mode for all UIs",
+  "namespace": "global",
+  "metadata": { "type": "preference", "agent": "claude-code" }
+}
+
+// Store project architecture decision
+{
+  "content": "Using pgvector with HNSW index for semantic search",
+  "namespace": "project:trindex",
+  "metadata": { "type": "decision", "tags": ["architecture", "database"] }
+}
+
+// Store session-specific debugging info
+{
+  "content": "Error occurs when embedding dimensions mismatch",
+  "namespace": "session:debug-2026-03-07",
+  "ttl_seconds": 86400,
+  "metadata": { "type": "debug", "source": "error_log" }
+}
 ```
 
 ---
@@ -772,7 +1058,7 @@ task check                    # Run all checks (fmt, lint, test, build)
   - Loading indicators
   - Error messages in modals
 
-### Phase 3 — Polish (in progress)
+### Phase 3 — Memory System Enhancement ✅ COMPLETED
 
 #### 3.1 Enhanced Features
 - [ ] **3.1.1** LLM metadata extraction (optional)
@@ -791,6 +1077,43 @@ task check                    # Run all checks (fmt, lint, test, build)
   - REST API: `GET /api/duplicates` finds near-identical memories (similarity > 0.95)
   - `POST /api/duplicates/merge` merges duplicate memories
   - Configurable similarity threshold
+- [x] **3.1.5** Client-side deduplication
+  - `skip_duplicate_threshold` parameter in `remember` tool
+  - 0.95 for exact matches (content hash), 0.85 for semantic matches
+  - Returns existing memory if duplicate found
+- [x] **3.1.6** Server-side deduplication
+  - `content_hash` column (SHA-256) with unique constraint per namespace
+  - Prevents identical content storage in same namespace
+  - Backward compatible (hash computed for existing memories)
+- [x] **3.1.7** TTL (Time-To-Live) support
+  - `ttl_seconds` parameter for temporary memories
+  - `expires_at` timestamp column
+  - Auto-expiration for `session:*` namespaces (24h default)
+  - Expired memories filtered from recall results
+  - `DeleteExpired()` method for cleanup
+
+#### 3.2 Advanced Retrieval
+- [x] **3.2.1** Configurable hybrid search weights
+  - `HYBRID_VECTOR_WEIGHT` env var (default: 0.7)
+  - `HYBRID_FTS_WEIGHT` env var (default: 0.3)
+  - Per-query weight override in `recall` tool via `VectorWeight` and `FTSWeight` params
+- [x] **3.2.2** Context window ranking
+  - `BuildContextWindow()` with weighted scoring algorithm
+  - Relevance (50%) + Recency (30%) + Type boost (20%)
+  - Token budget management for LLM context windows
+  - 24h half-life recency decay
+- [x] **3.2.3** Context passport pattern
+  - `CreatePassport()` for exporting context to external systems
+  - `ImportPassport()` for importing context from other systems
+  - Cross-system handoff (Linear, GitHub, different agents)
+  - Portable JSON format with memory references
+- [ ] **3.2.4** Per-query HNSW tuning
+  - `ef_search` parameter in `recall` tool (optional)
+  - Override default from env var
+- [ ] **3.2.5** HNSW index health monitoring
+  - Track index staleness (deleted vectors ratio)
+  - Suggest reindex when threshold exceeded
+  - CLI command to trigger reindex
 
 #### 3.2 Search Improvements
 - [x] **3.2.1** Configurable hybrid search weights
@@ -869,6 +1192,9 @@ All MCP tool errors return structured responses:
 | `DB_UNAVAILABLE` | Postgres connection failed |
 | `NOT_FOUND` | Memory ID not found for forget/lookup |
 | `NAMESPACE_REQUIRED` | Forget called without sufficient scope |
+| `DUPLICATE_CONTENT` | Content already exists (deduplication) |
+| `PASSPORT_EXPIRED` | Context passport has expired |
+| `PASSPORT_INVALID` | Context passport format is invalid |
 
 ---
 
@@ -883,6 +1209,10 @@ All MCP tool errors return structured responses:
 - Tool descriptions must be written for both human and LLM readability — the agent decides which tool to call based on the description
 - Never delete without explicit scope — `forget` with no filters should return `INVALID_INPUT`, not delete everything
 - The official MCP Go SDK API may still be evolving — pin to a specific version in go.mod
+- **Deduplication**: Content hash is computed using SHA-256 of trimmed content — normalization prevents whitespace-only differences
+- **TTL**: Session namespaces (`session:*`) automatically get 24h TTL unless explicitly overridden — this prevents session bloat
+- **Context Window**: BuildContextWindow uses weighted scoring — adjust weights based on use case (e.g., debugging benefits from recency boost)
+- **Passport**: Always set appropriate TTL on passports — they contain sensitive context that shouldn't persist indefinitely
 
 ---
 
