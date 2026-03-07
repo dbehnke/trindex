@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 
@@ -12,21 +14,46 @@ import (
 	"github.com/dbehnke/trindex/internal/embed"
 )
 
+type DoctorFlags struct {
+	RemoteURL string
+	APIKey    string
+}
+
 func NewDoctorCommand() *Command {
+	flags := &DoctorFlags{}
+	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
+	fs.StringVar(&flags.RemoteURL, "remote", "", "Remote Trindex HTTP API URL (proxy mode)")
+	fs.StringVar(&flags.APIKey, "api-key", "", "API key for remote connection (proxy mode)")
+
 	return &Command{
 		Name:        "doctor",
 		Description: "Run diagnostics",
+		Flags:       fs,
 		Run: func(ctx context.Context, args []string) error {
-			exitCode := RunDoctor(ctx)
+			exitCode := RunDoctor(ctx, flags)
 			os.Exit(exitCode)
 			return nil
 		},
 	}
 }
 
-func RunDoctor(ctx context.Context) int {
+func RunDoctor(ctx context.Context, flags *DoctorFlags) int {
 	fmt.Println("🔍 Trindex Doctor")
 	fmt.Println()
+
+	serverURL := flags.RemoteURL
+	if serverURL == "" {
+		serverURL = os.Getenv("TRINDEX_URL")
+	}
+
+	apiKey := flags.APIKey
+	if apiKey == "" {
+		apiKey = os.Getenv("TRINDEX_API_KEY")
+	}
+
+	if serverURL != "" && serverURL != "local" {
+		return RunProxyDoctor(ctx, serverURL, apiKey)
+	}
 
 	allPassed := true
 	oldLevel := slog.SetLogLoggerLevel(slog.LevelError)
@@ -131,4 +158,53 @@ func testEmbedConnection(client *embed.Client) (int, error) {
 		return 0, err
 	}
 	return len(embedding), nil
+}
+
+func RunProxyDoctor(ctx context.Context, serverURL, apiKey string) int {
+	fmt.Println("   [Mode: Proxy Client]")
+	fmt.Printf("   Checking remote connection to: %s\n", serverURL)
+	fmt.Println()
+
+	allPassed := true
+
+	fmt.Print("Checking proxy /health endpoint... ")
+
+	req, err := http.NewRequestWithContext(ctx, "GET", serverURL+"/health", nil)
+	if err != nil {
+		fmt.Printf("❌ FAILED\n   Failed to create request: %v\n", err)
+		allPassed = false
+	} else {
+		if apiKey != "" {
+			req.Header.Set("X-API-Key", apiKey)
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+		}
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+
+		if err != nil {
+			fmt.Printf("❌ FAILED\n   Connection error: %v\n", err)
+			allPassed = false
+		} else {
+			defer func() { _ = resp.Body.Close() }()
+			if resp.StatusCode == http.StatusOK {
+				fmt.Println("✅ PASSED")
+			} else {
+				fmt.Printf("❌ FAILED\n   HTTP Status: %d\n", resp.StatusCode)
+				if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+					fmt.Println("   ⚠️  Check your --api-key or TRINDEX_API_KEY environment variable")
+				}
+				allPassed = false
+			}
+		}
+	}
+
+	fmt.Println()
+
+	if allPassed {
+		fmt.Println("🎉 All proxy checks passed! Trindex MCP is ready to go.")
+		return 0
+	}
+	fmt.Println("❌ Some checks failed. Please fix the issues above.")
+	return 1
 }

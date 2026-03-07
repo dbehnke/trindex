@@ -12,7 +12,7 @@ func TestDoctorCommand(t *testing.T) {
 		t.Setenv("EMBED_DIMENSIONS", "0")
 
 		ctx := context.Background()
-		exitCode := RunDoctor(ctx)
+		exitCode := RunDoctor(ctx, &DoctorFlags{})
 
 		assert.Equal(t, 1, exitCode)
 	})
@@ -24,7 +24,7 @@ func TestDoctorCommand(t *testing.T) {
 		t.Setenv("EMBED_DIMENSIONS", "768")
 
 		ctx := context.Background()
-		exitCode := RunDoctor(ctx)
+		exitCode := RunDoctor(ctx, &DoctorFlags{})
 
 		assert.Equal(t, 1, exitCode)
 	})
