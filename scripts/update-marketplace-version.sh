@@ -1,5 +1,5 @@
 #!/bin/bash
-# Update marketplace.json version to match the release tag
+# Update plugin version files to match the release tag
 # Usage: ./scripts/update-marketplace-version.sh <version>
 # Example: ./scripts/update-marketplace-version.sh v1.0.2
 
@@ -14,10 +14,16 @@ fi
 # Strip 'v' prefix if present
 VERSION="${VERSION#v}"
 
-MARKETPLACE_FILE=".claude-plugin/marketplace.json"
+FILES=(
+    ".claude-plugin/marketplace.json"
+    ".claude-plugin/plugin/plugin.json"
+)
 
-# Update version in marketplace.json
-sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" "$MARKETPLACE_FILE"
-rm -f "$MARKETPLACE_FILE.bak"
-
-echo "Updated marketplace version to $VERSION"
+# Update version in all plugin files
+for FILE in "${FILES[@]}"; do
+    if [ -f "$FILE" ]; then
+        sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" "$FILE"
+        rm -f "$FILE.bak"
+        echo "Updated $FILE to version $VERSION"
+    fi
+done
