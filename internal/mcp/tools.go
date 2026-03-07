@@ -50,7 +50,7 @@ type recallInput struct {
 	Query      string   `json:"query" jsonschema:"Natural language search query"`
 	Namespaces []string `json:"namespaces,omitempty" jsonschema:"Namespaces to search. If unsure, ALWAYS use ['default']."`
 	TopK       int      `json:"top_k,omitempty" jsonschema:"Number of results to return"`
-	Threshold  float64  `json:"threshold,omitempty" jsonschema:"Minimum similarity score 0.0-1.0"`
+	Threshold  float64  `json:"threshold,omitempty" jsonschema:"Minimum RRF similarity score (e.g. 0.0001 to 0.02). Default: 0.0001"`
 	Filter     struct {
 		Since  *time.Time `json:"since,omitempty" jsonschema:"Filter by start date"`
 		Until  *time.Time `json:"until,omitempty" jsonschema:"Filter by end date"`

@@ -126,7 +126,7 @@ func defaultConfig() *Config {
 		// Recall Defaults
 		DefaultNamespace:           "default",
 		DefaultTopK:                10,
-		DefaultSimilarityThreshold: 0.7,
+		DefaultSimilarityThreshold: 0.0001,
 
 		// Hybrid Search Weights
 		HybridVectorWeight: 0.7,
