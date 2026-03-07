@@ -1136,16 +1136,22 @@ task check                    # Run all checks (fmt, lint, test, build)
   - Retry logic with exponential backoff (`EMBED_MAX_RETRIES`, `EMBED_RETRY_DELAY_MS`)
   - Request timeout configuration (`EMBED_REQUEST_TIMEOUT_SEC`)
   - Batch embedding support (already supported)
-- [ ] **3.3.3** Observability
-  - Structured logging with levels
-  - Metrics endpoint (Prometheus format)
-  - Request tracing
+- [x] **3.3.3** Observability
+  - Structured logging with levels (JSON format, configurable)
+  - Metrics endpoint (`/metrics`, Prometheus format)
+  - Request tracing (automatic request ID generation)
 
 #### 3.4 Documentation & Community
-- [ ] **3.4.1** API documentation (OpenAPI spec)
-- [ ] **3.4.2** Architecture decision records (ADRs)
-- [ ] **3.4.3** Contributing guide
-- [ ] **3.4.4** Changelog and versioning
+- [x] **3.4.1** API documentation (OpenAPI spec)
+- [x] **3.4.2** Architecture decision records (ADRs)
+  - ADR-001: Hybrid Search with RRF
+  - ADR-002: Namespace Hierarchy Convention
+  - ADR-003: Two-Tier Deduplication Strategy
+  - ADR-004: TTL for Memory Lifecycle
+  - ADR-005: Context Window Ranking
+  - ADR-006: Context Passport Pattern
+- [x] **3.4.3** Contributing guide
+- [x] **3.4.4** Changelog and versioning
 
 ---
 

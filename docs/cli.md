@@ -527,6 +527,13 @@ Trindex can be configured via environment variables. These can also be set in a 
 | `HNSW_EF_CONSTRUCTION` | HNSW ef_construction | 64 |
 | `HNSW_EF_SEARCH` | HNSW ef_search | 40 |
 
+### Observability
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LOG_LEVEL` | Log level (debug/info/warn/error) | info |
+| `LOG_FORMAT` | Log format (json/text) | json |
+
 ### TTL and Deduplication
 
 | Variable | Description | Default |

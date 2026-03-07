@@ -14,6 +14,7 @@ Trindex is a standalone Go binary that provides persistent, semantic memory for 
 - **🛂 Context Passport** — Cross-system context transfer (Linear, GitHub, agent handoff)
 - **🔄 Deduplication** — Client-side (threshold-based) and server-side (content hash) duplicate prevention
 - **⏰ TTL Support** — Time-to-live for temporary memories with automatic cleanup
+- **📊 Observability** — Structured logging, Prometheus metrics (/metrics), request tracing
 - **🌐 Multi-Agent** — Share one memory server across multiple AI agents (OpenCode, Claude Code, Cursor, etc.)
 - **🖥️ Web UI** — Built-in Vue.js interface for browsing and managing memories
 - **🔌 MCP Native** — Works with any MCP-compatible agent via stdio transport
@@ -255,6 +256,35 @@ imported, _ := memory.ImportPassport(ctx, passportJSON, memory.ImportOptions{
     TargetNamespace: "github:issue-123",
 })
 ```
+
+### Observability
+
+Trindex provides comprehensive observability features:
+
+**Structured Logging:**
+```bash
+# JSON-formatted logs with configurable levels
+LOG_LEVEL=debug ./trindex server
+```
+
+**Prometheus Metrics:**
+```bash
+# Metrics endpoint at /metrics
+curl http://localhost:9636/metrics
+```
+
+Available metrics:
+- `http_request_duration_seconds` - HTTP request latency
+- `http_requests_total` - Total HTTP requests
+- `memory_operations_total` - Memory operations by type
+- `memory_operation_duration_seconds` - Operation latency
+- `db_connections` - Database connection pool stats
+- `mcp_requests_total` - MCP tool requests
+
+**Request Tracing:**
+- Automatic request ID generation
+- Propagated via `X-Request-ID` header
+- Included in all log entries
 
 ## MCP Client/Server Architecture
 
