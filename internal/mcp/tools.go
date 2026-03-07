@@ -76,6 +76,9 @@ func (s *Server) registerRecall() {
 		if in.Threshold == 0 {
 			in.Threshold = s.cfg.DefaultSimilarityThreshold
 		}
+		if len(in.Namespaces) == 0 {
+			in.Namespaces = []string{s.cfg.DefaultNamespace}
+		}
 
 		params := memory.RecallParams{
 			Query:      in.Query,
