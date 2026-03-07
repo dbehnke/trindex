@@ -219,21 +219,21 @@ func (s *Server) handleMCPRecall(w http.ResponseWriter, r *http.Request, args js
 		params.Threshold = s.cfg.DefaultSimilarityThreshold
 	}
 
-	// Always include global namespace
+	// Determine base namespaces
 	if len(params.Namespaces) == 0 {
-		params.Namespaces = []string{"global"}
-	} else {
-		// Check if global is already included
-		hasGlobal := false
-		for _, ns := range params.Namespaces {
-			if ns == "global" {
-				hasGlobal = true
-				break
-			}
+		params.Namespaces = []string{s.cfg.DefaultNamespace}
+	}
+
+	// Always ensure global namespace is included
+	hasGlobal := false
+	for _, ns := range params.Namespaces {
+		if ns == "global" {
+			hasGlobal = true
+			break
 		}
-		if !hasGlobal {
-			params.Namespaces = append(params.Namespaces, "global")
-		}
+	}
+	if !hasGlobal {
+		params.Namespaces = append(params.Namespaces, "global")
 	}
 
 	recallParams := memory.RecallParams{
