@@ -237,13 +237,23 @@ Add to `~/.config/opencode/opencode.json`:
 - Ensure `TRINDEX_URL` points to your server (default: <http://localhost:9636>)
 - Set `TRINDEX_API_KEY` if your server requires authentication
 
-### Claude Code
+### Claude Code (CLI)
 
 ```bash
 claude mcp add trindex --command "/path/to/trindex mcp"
 ```
 
-**Note:** The server must be running before the MCP client starts.
+**Prerequisites:**
+- Start the Trindex server first: `docker compose up -d` or `./trindex server`
+- Ensure `TRINDEX_URL` points to your server (default: http://localhost:9636)
+- Set `TRINDEX_API_KEY` if your server requires authentication
+
+### Claude Marketplace Plugin
+
+Trindex is available as a Claude Marketplace plugin with automatic installation and updates. See [Marketplace Plugin Guide](docs/marketplace-plugin-guide.md) for:
+- Installation method for Claude desktop app
+- Configuration and environment variables
+- How to adapt this pattern for other tools
 
 ## Development
 
@@ -267,4 +277,5 @@ Business Source License 1.1 - See [LICENSE](LICENSE) for details.
 
 ## Architecture
 
-See [AGENT.md](AGENT.md) for detailed architecture documentation and implementation roadmap.
+- [AGENT.md](AGENT.md) - Detailed architecture documentation and implementation roadmap
+- [Marketplace Plugin Guide](docs/marketplace-plugin-guide.md) - Plugin distribution method and CI/CD integration
