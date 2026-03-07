@@ -191,6 +191,7 @@ tasks:
     cmds:
       - bash scripts/update-marketplace-version.sh {{.VERSION}}
       - git add .claude-plugin/
-      - git commit -m 'chore: bump version to {{.VERSION}}'
+      - |
+        git commit -m "chore: bump version to {{.VERSION}}"
       - git tag {{.VERSION}}
       - git push origin main {{.VERSION}}
