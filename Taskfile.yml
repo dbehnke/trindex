@@ -186,8 +186,11 @@ tasks:
     cmds:
       - goreleaser release --snapshot --clean
 
-  tag:
-    desc: "Create and push a release tag (usage: task tag VERSION=v1.2.3)"
+  release:tag:
+    desc: "Create and push a release tag with version update (usage: task release:tag VERSION=v1.2.3)"
     cmds:
-      - git tag -a {{.VERSION}} -m "Release {{.VERSION}}"
-      - git push origin {{.VERSION}}
+      - bash scripts/update-marketplace-version.sh {{.VERSION}}
+      - git add .claude-plugin/
+      - git commit -m "chore: bump version to {{.VERSION}}"
+      - git tag {{.VERSION}}
+      - git push origin main {{.VERSION}}
