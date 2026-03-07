@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/dbehnke/trindex/internal/config"
@@ -117,13 +118,16 @@ func (s *Store) DeleteByNamespace(ctx context.Context, namespace string, filter 
 	if filter.Before != nil {
 		query += fmt.Sprintf(" AND created_at < $%d", argIdx)
 		args = append(args, *filter.Before)
+		argIdx++
 	}
 
 	if len(filter.Tags) > 0 {
-		argIdx++
+		tagStrs := make([]string, len(filter.Tags))
+		for i, t := range filter.Tags {
+			tagStrs[i] = `"` + strings.ReplaceAll(t, `"`, `\"`) + `"`
+		}
 		query += fmt.Sprintf(" AND metadata->'tags' @> $%d::jsonb", argIdx)
-		tagsJSON := fmt.Sprintf(`["%s"]`, filter.Tags[0])
-		args = append(args, tagsJSON)
+		args = append(args, "["+strings.Join(tagStrs, ",")+"]")
 	}
 
 	result, err := s.db.Pool().Exec(ctx, query, args...)

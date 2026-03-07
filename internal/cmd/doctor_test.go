@@ -9,6 +9,7 @@ import (
 
 func TestDoctorCommand(t *testing.T) {
 	t.Run("reports config errors", func(t *testing.T) {
+		t.Setenv("TRINDEX_URL", "")
 		t.Setenv("EMBED_DIMENSIONS", "0")
 
 		ctx := context.Background()
@@ -17,7 +18,8 @@ func TestDoctorCommand(t *testing.T) {
 		assert.Equal(t, 1, exitCode)
 	})
 
-	t.Run("exit code 0 on valid config", func(t *testing.T) {
+	t.Run("fails when db and embed are unreachable", func(t *testing.T) {
+		t.Setenv("TRINDEX_URL", "")
 		t.Setenv("DATABASE_URL", "postgres://test:test@localhost:5432/test")
 		t.Setenv("EMBED_BASE_URL", "http://localhost:11434/v1")
 		t.Setenv("EMBED_MODEL", "nomic-embed-text")

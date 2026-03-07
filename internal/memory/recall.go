@@ -284,10 +284,20 @@ func (s *Store) fetchMemoriesByIDs(ctx context.Context, ids []uuid.UUID, filter 
 	if filter.Until != nil {
 		query += fmt.Sprintf(" AND created_at <= $%d", argIdx)
 		args = append(args, *filter.Until)
+		argIdx++
+	}
+
+	if len(filter.Tags) > 0 {
+		tagStrs := make([]string, len(filter.Tags))
+		for i, t := range filter.Tags {
+			tagStrs[i] = `"` + strings.ReplaceAll(t, `"`, `\"`) + `"`
+		}
+		query += fmt.Sprintf(" AND metadata->'tags' @> $%d::jsonb", argIdx)
+		args = append(args, "["+strings.Join(tagStrs, ",")+"]")
+		argIdx++
 	}
 
 	if filter.Source != "" {
-		argIdx++
 		query += fmt.Sprintf(" AND metadata->>'source' = $%d", argIdx)
 		args = append(args, filter.Source)
 	}

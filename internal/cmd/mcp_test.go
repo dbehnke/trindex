@@ -9,10 +9,10 @@ import (
 
 func TestMCPCommand(t *testing.T) {
 	t.Run("requires valid config", func(t *testing.T) {
-		t.Setenv("DATABASE_URL", "")
+		t.Setenv("EMBED_DIMENSIONS", "0")
 
 		ctx := context.Background()
-		err := RunMCP(ctx, &MCPFlags{})
+		err := RunMCP(ctx, &MCPFlags{RemoteURL: "local"})
 
 		assert.Error(t, err)
 	})
@@ -24,7 +24,7 @@ func TestMCPCommand(t *testing.T) {
 		t.Setenv("EMBED_DIMENSIONS", "768")
 
 		ctx := context.Background()
-		err := RunMCP(ctx, &MCPFlags{})
+		err := RunMCP(ctx, &MCPFlags{RemoteURL: "local"})
 
 		assert.Error(t, err)
 	})

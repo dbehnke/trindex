@@ -11,15 +11,15 @@ import (
 
 // rememberInput represents the input for the remember tool
 type rememberInput struct {
-	Content   string                 `json:"content" jsonschema:"The memory text to store"`
-	Namespace string                 `json:"namespace,omitempty" jsonschema:"Scope for this memory. If unsure, ALWAYS use 'default'."`
-	Metadata  map[string]interface{} `json:"metadata,omitempty" jsonschema:"Arbitrary key/value tags"`
+	Content   string                 `json:"content" jsonschema:"The memory text to store. Write 1-3 concise sentences that state the fact directly. Good candidates: decisions made, user preferences, patterns discovered, task outcomes, architectural choices, bug root causes. Avoid trivial or ephemeral facts."`
+	Namespace string                 `json:"namespace,omitempty" jsonschema:"Scope for this memory. Use 'global' for cross-agent user facts (preferences, identity, persistent context). Use a project namespace (e.g. 'trindex', 'myapp') for task-specific memories. Use 'default' when unsure."`
+	Metadata  map[string]interface{} `json:"metadata,omitempty" jsonschema:"Arbitrary key/value tags. Recommended fields: type (e.g. 'decision', 'preference', 'pattern', 'bug', 'outcome'), tags ([]string), agent (agent name), project (project name), source (e.g. 'session', 'user-statement')."`
 }
 
 func (s *Server) registerRemember() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "remember",
-		Description: "Store a memory with optional namespace and metadata",
+		Description: "Store a memory with optional namespace and metadata. Call this after making a significant decision, learning a user preference, identifying a recurring pattern, completing a task, or discovering a bug root cause. Write content as 1-3 concise sentences stating the fact directly. Use namespace 'global' for cross-agent user facts; use a project-specific namespace for task-specific memories; use 'default' when unsure. Include metadata fields like type, tags, agent, and project to make memories easier to filter later.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in rememberInput) (*mcp.CallToolResult, any, error) {
 		if in.Content == "" {
 			return &mcp.CallToolResult{
@@ -47,11 +47,13 @@ func (s *Server) registerRemember() {
 
 // recallInput represents the input for the recall tool
 type recallInput struct {
-	Query      string   `json:"query" jsonschema:"Natural language search query"`
-	Namespaces []string `json:"namespaces,omitempty" jsonschema:"Namespaces to search. If unsure, ALWAYS use ['default']."`
-	TopK       int      `json:"top_k,omitempty" jsonschema:"Number of results to return"`
-	Threshold  float64  `json:"threshold,omitempty" jsonschema:"Minimum RRF similarity score (e.g. 0.0001 to 0.02). Default: 0.0001"`
-	Filter     struct {
+	Query        string   `json:"query" jsonschema:"Natural language search query. Phrase it as a statement or question describing what you are looking for, e.g. 'user preferred database' or 'how was the authentication bug fixed'."`
+	Namespaces   []string `json:"namespaces,omitempty" jsonschema:"Namespaces to search. 'global' is always searched automatically regardless of what you pass here. Use a project namespace (e.g. ['trindex']) for project-specific recall. Use ['default'] when unsure. You may pass multiple namespaces to cast a wide net."`
+	TopK         int      `json:"top_k,omitempty" jsonschema:"Number of results to return. Default: 10."`
+	Threshold    float64  `json:"threshold,omitempty" jsonschema:"Minimum RRF similarity score. Default 0.0001 casts a wide net. Raise to 0.005-0.02 for higher-precision retrieval when you only want close matches."`
+	VectorWeight float64  `json:"vector_weight,omitempty" jsonschema:"Semantic search weight 0.0-1.0. Default 0 uses server config (0.7). Increase for conceptual or paraphrased queries where exact keywords may not match."`
+	FTSWeight    float64  `json:"fts_weight,omitempty" jsonschema:"Full-text search weight 0.0-1.0. Default 0 uses server config (0.3). Increase for exact-term queries like function names, error codes, or identifiers."`
+	Filter       struct {
 		Since  *time.Time `json:"since,omitempty" jsonschema:"Filter by start date"`
 		Until  *time.Time `json:"until,omitempty" jsonschema:"Filter by end date"`
 		Tags   []string   `json:"tags,omitempty" jsonschema:"Match any tag in metadata.tags"`
@@ -62,7 +64,7 @@ type recallInput struct {
 func (s *Server) registerRecall() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "recall",
-		Description: "Retrieve memories by semantic similarity. Use this tool PROACTIVELY whenever the user asks about past interactions, personal details, or facts you do not immediately know.",
+		Description: "Retrieve memories by semantic similarity using hybrid search (vector + full-text, fused with RRF). Call this PROACTIVELY at session start to orient yourself, before making significant decisions, and whenever you encounter a pattern or bug that might have been seen before. The 'global' namespace is always searched automatically — you do not need to include it. Use threshold 0.0001 (default) for a wide net; raise to 0.005-0.02 for precision. Use vector_weight high (e.g. 0.9) for conceptual queries; use fts_weight high (e.g. 0.9) for exact term lookups. Pass multiple namespaces to search across project and personal context simultaneously.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in recallInput) (*mcp.CallToolResult, any, error) {
 		if in.Query == "" {
 			return &mcp.CallToolResult{
@@ -81,10 +83,12 @@ func (s *Server) registerRecall() {
 		}
 
 		params := memory.RecallParams{
-			Query:      in.Query,
-			Namespaces: in.Namespaces,
-			TopK:       in.TopK,
-			Threshold:  in.Threshold,
+			Query:        in.Query,
+			Namespaces:   in.Namespaces,
+			TopK:         in.TopK,
+			Threshold:    in.Threshold,
+			VectorWeight: in.VectorWeight,
+			FTSWeight:    in.FTSWeight,
 			Filter: memory.Filter{
 				Since:  in.Filter.Since,
 				Until:  in.Filter.Until,
@@ -100,10 +104,22 @@ func (s *Server) registerRecall() {
 			}, nil, nil
 		}
 
+		// Build namespaces_searched to match what recall.go actually searches:
+		// always prepends "global", then deduplicates.
+		allNs := append([]string{"global"}, in.Namespaces...)
+		seen := make(map[string]bool)
+		uniqueNs := []string{}
+		for _, ns := range allNs {
+			if !seen[ns] {
+				seen[ns] = true
+				uniqueNs = append(uniqueNs, ns)
+			}
+		}
+
 		result := map[string]interface{}{
 			"results":             results,
 			"total":               len(results),
-			"namespaces_searched": append([]string{"global"}, in.Namespaces...),
+			"namespaces_searched": uniqueNs,
 		}
 
 		return &mcp.CallToolResult{Content: successResult(result)}, nil, nil
@@ -112,18 +128,18 @@ func (s *Server) registerRecall() {
 
 // forgetInput represents the input for the forget tool
 type forgetInput struct {
-	ID        string `json:"id,omitempty" jsonschema:"Delete single memory by UUID"`
-	Namespace string `json:"namespace,omitempty" jsonschema:"Delete all memories in namespace. If unsure, use 'default'."`
+	ID        string `json:"id,omitempty" jsonschema:"Delete a single memory by its UUID. Use this for surgical, precise deletion when you know the exact memory ID from a previous recall or list result."`
+	Namespace string `json:"namespace,omitempty" jsonschema:"Delete all memories in this namespace, optionally scoped by filter. Use for bulk pruning of a project or stale namespace. If unsure, use 'default'."`
 	Filter    struct {
-		Before *time.Time `json:"before,omitempty" jsonschema:"Delete memories older than this"`
-		Tags   []string   `json:"tags,omitempty" jsonschema:"Delete memories matching these tags"`
+		Before *time.Time `json:"before,omitempty" jsonschema:"Delete memories older than this timestamp. Combine with namespace for scoped cleanup."`
+		Tags   []string   `json:"tags,omitempty" jsonschema:"Delete memories that have any of these tags in metadata.tags. Combine with namespace for scoped cleanup."`
 	} `json:"filter,omitempty"`
 }
 
 func (s *Server) registerForget() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "forget",
-		Description: "Delete one or more memories. At least one of id, namespace, or filter must be provided.",
+		Description: "Delete one or more memories. Use this when the user explicitly asks to forget something, when a memory is incorrect or stale, or to deduplicate redundant memories. Provide 'id' for surgical single-memory deletion (preferred when you have the UUID). Provide 'namespace' plus optional filter for bulk pruning. At least one of id, namespace, or filter must be provided — this tool will never delete without an explicit target.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in forgetInput) (*mcp.CallToolResult, any, error) {
 		if in.ID == "" && in.Namespace == "" && in.Filter.Before == nil && len(in.Filter.Tags) == 0 {
 			return &mcp.CallToolResult{
@@ -168,16 +184,16 @@ func (s *Server) registerForget() {
 
 // listInput represents the input for the list tool
 type listInput struct {
-	Namespace string `json:"namespace,omitempty" jsonschema:"Filter by namespace. If unsure, use 'default'."`
-	Limit     int    `json:"limit,omitempty" jsonschema:"Number of results to return"`
-	Offset    int    `json:"offset,omitempty" jsonschema:"Offset for pagination"`
-	Order     string `json:"order,omitempty" jsonschema:"Sort order (asc or desc)"`
+	Namespace string `json:"namespace,omitempty" jsonschema:"Filter by namespace. Use this to inspect all memories in a specific namespace. If unsure, use 'default'."`
+	Limit     int    `json:"limit,omitempty" jsonschema:"Number of results to return. Default: 20."`
+	Offset    int    `json:"offset,omitempty" jsonschema:"Offset for pagination."`
+	Order     string `json:"order,omitempty" jsonschema:"Sort order: 'asc' or 'desc' by created_at. Use 'desc' (default) to see most recent memories first."`
 }
 
 func (s *Server) registerList() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "list",
-		Description: "Browse memories without a semantic query",
+		Description: "Browse memories by recency without a semantic query. Prefer this over recall when you want to audit or inspect a namespace (e.g. 'what did I store in this project?'), find the most recent memories regardless of topic, or check whether a namespace is empty. Unlike recall, list does not perform semantic search and does not automatically include the global namespace — it returns exactly what is in the specified namespace ordered by time.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in listInput) (*mcp.CallToolResult, any, error) {
 		params := memory.ListParams{
 			Namespace: in.Namespace,
@@ -204,13 +220,13 @@ func (s *Server) registerList() {
 
 // statsInput represents the input for the stats tool
 type statsInput struct {
-	Namespace string `json:"namespace,omitempty" jsonschema:"Scope stats to namespace. If unsure, use 'default'."`
+	Namespace string `json:"namespace,omitempty" jsonschema:"Scope stats to a specific namespace. Omit to get global stats across all namespaces, which shows a full breakdown by namespace. If unsure, omit this field."`
 }
 
 func (s *Server) registerStats() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "stats",
-		Description: "Return memory statistics",
+		Description: "Return memory statistics including total count, breakdown by namespace, recent activity, and top tags. Call this at session start to orient yourself (see what namespaces exist and how much is stored). Also useful before an export or cleanup to scope the operation, and after a batch of remember calls to confirm they persisted. Omit namespace to get a full global overview; provide namespace to scope stats to a single namespace.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in statsInput) (*mcp.CallToolResult, any, error) {
 		stats, err := s.store.GetStats(ctx, in.Namespace)
 		if err != nil {
