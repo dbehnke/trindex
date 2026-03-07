@@ -210,19 +210,22 @@ func (s *Store) importWithEmbedding(ctx context.Context, mem ImportMemory, names
 		updatedAt = *mem.UpdatedAt
 	}
 
+	contentHash := computeContentHash(mem.Content)
+
 	query := `
-		INSERT INTO memories (id, namespace, content, embedding, metadata, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO memories (id, namespace, content, content_hash, embedding, metadata, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (id) DO UPDATE SET
 			namespace = EXCLUDED.namespace,
 			content = EXCLUDED.content,
+			content_hash = EXCLUDED.content_hash,
 			embedding = EXCLUDED.embedding,
 			metadata = EXCLUDED.metadata,
 			updated_at = EXCLUDED.updated_at
 	`
 
 	_, err = s.db.Pool().Exec(ctx, query,
-		mem.ID, namespace, mem.Content, pgvector.NewVector(embedding),
+		mem.ID, namespace, mem.Content, contentHash, pgvector.NewVector(embedding),
 		mem.Metadata, mem.CreatedAt, updatedAt,
 	)
 	return err
