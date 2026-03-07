@@ -1,0 +1,47 @@
+version: 2
+project_name: trindex
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: trindex
+    main: ./cmd/trindex
+    binary: trindex
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X github.com/dbehnke/trindex/internal/cmd.Version={{.Version}}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: "trindex_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  github:
+    owner: dbehnke
+    name: trindex
+  draft: false
+  prerelease: auto
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

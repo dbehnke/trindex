@@ -180,3 +180,14 @@ tasks:
           exit 1
         fi
       - echo "✅ All version requirements met"
+
+  release:dry:
+    desc: "Dry-run GoReleaser release"
+    cmds:
+      - goreleaser release --snapshot --clean
+
+  tag:
+    desc: "Create and push a release tag (usage: task tag VERSION=v1.2.3)"
+    cmds:
+      - git tag -a {{.VERSION}} -m "Release {{.VERSION}}"
+      - git push origin {{.VERSION}}

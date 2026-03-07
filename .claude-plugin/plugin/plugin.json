@@ -1,0 +1,11 @@
+{
+  "name": "trindex",
+  "version": "1.0.0",
+  "description": "Persistent semantic memory for AI agents via MCP. Stores and recalls memories using hybrid vector + full-text search (pgvector + Postgres). Proxies to a running trindex server.",
+  "author": {
+    "name": "Dan Behnke"
+  },
+  "repository": "https://github.com/dbehnke/trindex",
+  "license": "MIT",
+  "keywords": ["memory", "semantic", "mcp", "persistence", "pgvector"]
+}

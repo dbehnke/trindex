@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "trindex": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/trindex",
+      "args": ["mcp"],
+      "env": {
+        "TRINDEX_URL": "${TRINDEX_URL:-http://localhost:9636}",
+        "TRINDEX_API_KEY": "${TRINDEX_API_KEY:-}"
+      }
+    }
+  }
+}

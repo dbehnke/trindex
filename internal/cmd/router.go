@@ -4,8 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 )
+
+// Version is injected at build time via ldflags: -X github.com/dbehnke/trindex/internal/cmd.Version={{.Version}}
+var Version = "dev"
 
 // Command represents a CLI command
 type Command struct {
@@ -157,11 +159,7 @@ func (r *Router) printHelp() {
 
 // runVersion displays version information
 func (r *Router) runVersion() error {
-	version := os.Getenv("TRINDEX_VERSION")
-	if version == "" {
-		version = "dev"
-	}
-	fmt.Printf("trindex version %s\n", version)
+	fmt.Printf("trindex version %s\n", Version)
 	return nil
 }
 
