@@ -30,6 +30,11 @@ func (s *Store) Recall(ctx context.Context, params RecallParams) ([]RecallResult
 		return nil, fmt.Errorf("failed to embed query: %w", err)
 	}
 
+	// If no namespaces provided, fallback to default
+	if len(params.Namespaces) == 0 {
+		params.Namespaces = []string{s.cfg.DefaultNamespace}
+	}
+
 	// Always include global namespace
 	namespaces := append([]string{"global"}, params.Namespaces...)
 	// Deduplicate
