@@ -12,7 +12,7 @@ import (
 // rememberInput represents the input for the remember tool
 type rememberInput struct {
 	Content   string                 `json:"content" jsonschema:"The memory text to store"`
-	Namespace string                 `json:"namespace,omitempty" jsonschema:"Scope for this memory"`
+	Namespace string                 `json:"namespace,omitempty" jsonschema:"Scope for this memory. If unsure, ALWAYS use 'default'."`
 	Metadata  map[string]interface{} `json:"metadata,omitempty" jsonschema:"Arbitrary key/value tags"`
 }
 
@@ -48,7 +48,7 @@ func (s *Server) registerRemember() {
 // recallInput represents the input for the recall tool
 type recallInput struct {
 	Query      string   `json:"query" jsonschema:"Natural language search query"`
-	Namespaces []string `json:"namespaces,omitempty" jsonschema:"Namespaces to search"`
+	Namespaces []string `json:"namespaces,omitempty" jsonschema:"Namespaces to search. If unsure, ALWAYS use ['default']."`
 	TopK       int      `json:"top_k,omitempty" jsonschema:"Number of results to return"`
 	Threshold  float64  `json:"threshold,omitempty" jsonschema:"Minimum similarity score 0.0-1.0"`
 	Filter     struct {
@@ -110,7 +110,7 @@ func (s *Server) registerRecall() {
 // forgetInput represents the input for the forget tool
 type forgetInput struct {
 	ID        string `json:"id,omitempty" jsonschema:"Delete single memory by UUID"`
-	Namespace string `json:"namespace,omitempty" jsonschema:"Delete all memories in namespace"`
+	Namespace string `json:"namespace,omitempty" jsonschema:"Delete all memories in namespace. If unsure, use 'default'."`
 	Filter    struct {
 		Before *time.Time `json:"before,omitempty" jsonschema:"Delete memories older than this"`
 		Tags   []string   `json:"tags,omitempty" jsonschema:"Delete memories matching these tags"`
@@ -165,7 +165,7 @@ func (s *Server) registerForget() {
 
 // listInput represents the input for the list tool
 type listInput struct {
-	Namespace string `json:"namespace,omitempty" jsonschema:"Filter by namespace"`
+	Namespace string `json:"namespace,omitempty" jsonschema:"Filter by namespace. If unsure, use 'default'."`
 	Limit     int    `json:"limit,omitempty" jsonschema:"Number of results to return"`
 	Offset    int    `json:"offset,omitempty" jsonschema:"Offset for pagination"`
 	Order     string `json:"order,omitempty" jsonschema:"Sort order (asc or desc)"`
@@ -201,7 +201,7 @@ func (s *Server) registerList() {
 
 // statsInput represents the input for the stats tool
 type statsInput struct {
-	Namespace string `json:"namespace,omitempty" jsonschema:"Scope stats to namespace"`
+	Namespace string `json:"namespace,omitempty" jsonschema:"Scope stats to namespace. If unsure, use 'default'."`
 }
 
 func (s *Server) registerStats() {
