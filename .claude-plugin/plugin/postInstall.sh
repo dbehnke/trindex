@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 
 REPO="dbehnke/trindex"
-INSTALL_DIR="${CLAUDE_PLUGIN_ROOT}/bin"
+PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="${CLAUDE_PLUGIN_ROOT:-$PLUGIN_DIR}/bin"
 BINARY="${INSTALL_DIR}/trindex"
 
 # Detect OS and arch
