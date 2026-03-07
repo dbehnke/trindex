@@ -11,7 +11,7 @@
     {
       "name": "trindex",
       "version": "1.0.0",
-      "source": "./plugin",
+      "source": "./.claude-plugin/plugin",
       "description": "Persistent semantic memory via MCP — hybrid vector + full-text search across sessions"
     }
   ]
