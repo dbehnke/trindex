@@ -1,0 +1,471 @@
+openapi: 3.0.0
+info:
+  title: Trindex API
+  description: |
+    Persistent semantic memory for AI agents via MCP (Model Context Protocol).
+    
+    Trindex provides a REST API for storing, retrieving, and managing memories
+    with vector-based semantic search and full-text search capabilities.
+  version: 1.0.0
+  contact:
+    name: Trindex Support
+    url: https://github.com/dbehnke/trindex
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/dbehnke/trindex/blob/main/LICENSE
+
+servers:
+  - url: http://localhost:9636
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns health status of the Trindex server
+      security: []
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Returns Prometheus-compatible metrics for monitoring
+      security: []
+      responses:
+        '200':
+          description: Prometheus metrics in text format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /api/memories:
+    get:
+      summary: List memories
+      description: Browse memories without semantic search
+      parameters:
+        - name: namespace
+          in: query
+          description: Filter by namespace
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of results
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+        - name: order
+          in: query
+          description: Sort order by created_at
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: List of memories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  memories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Memory'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+
+    post:
+      summary: Create memory
+      description: Store a new memory with optional namespace and metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: The memory text to store
+                namespace:
+                  type: string
+                  description: Scope for this memory (default 'default')
+                  default: default
+                metadata:
+                  type: object
+                  description: Arbitrary key/value tags
+                skip_duplicate_threshold:
+                  type: number
+                  description: Skip if similar memory exists (0.95 exact, 0.85 semantic)
+                  minimum: 0
+                  maximum: 1
+                ttl_seconds:
+                  type: integer
+                  description: Time-to-live in seconds (0 = no expiry)
+                  minimum: 0
+      responses:
+        '201':
+          description: Memory created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Memory'
+        '200':
+          description: Duplicate found, existing memory returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Memory'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/memories/{id}:
+    get:
+      summary: Get memory by ID
+      description: Retrieve a specific memory by its UUID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Memory found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Memory'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete memory
+      description: Delete a memory by its UUID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Memory deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/search:
+    post:
+      summary: Search memories
+      description: |
+        Search memories using hybrid search (vector + full-text) with
+        Reciprocal Rank Fusion (RRF) scoring.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: Natural language search query
+                namespaces:
+                  type: array
+                  items:
+                    type: string
+                  description: Namespaces to search (global always included)
+                  default: [default]
+                top_k:
+                  type: integer
+                  description: Number of results to return
+                  default: 10
+                threshold:
+                  type: number
+                  description: Minimum similarity score (0.0-1.0)
+                  default: 0.7
+                vector_weight:
+                  type: number
+                  description: Weight for vector search (0.0-1.0)
+                  default: 0.7
+                fts_weight:
+                  type: number
+                  description: Weight for full-text search (0.0-1.0)
+                  default: 0.3
+                filter:
+                  $ref: '#/components/schemas/Filter'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SearchResult'
+                  total:
+                    type: integer
+                  namespaces_searched:
+                    type: array
+                    items:
+                      type: string
+
+  /api/stats:
+    get:
+      summary: Get statistics
+      description: Return memory statistics for monitoring and dashboard
+      parameters:
+        - name: namespace
+          in: query
+          description: Scope stats to specific namespace
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Statistics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+
+  /api/export:
+    get:
+      summary: Export memories
+      description: Export memories to JSONL format
+      parameters:
+        - name: namespace
+          in: query
+          description: Filter by namespace
+          schema:
+            type: string
+        - name: since
+          in: query
+          description: Export memories since date (RFC3339)
+          schema:
+            type: string
+            format: date-time
+        - name: until
+          in: query
+          description: Export memories until date (RFC3339)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Memories exported as JSONL
+          content:
+            application/jsonl:
+              schema:
+                type: string
+
+  /api/import:
+    post:
+      summary: Import memories
+      description: Import memories from JSONL format
+      parameters:
+        - name: skip_existing
+          in: query
+          description: Skip duplicates
+          schema:
+            type: boolean
+            default: false
+        - name: namespace
+          in: query
+          description: Import to specific namespace
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/jsonl:
+            schema:
+              type: string
+              description: JSONL with one memory per line
+      responses:
+        '200':
+          description: Import results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported:
+                    type: integer
+                  skipped:
+                    type: integer
+                  errors:
+                    type: integer
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API key
+
+  schemas:
+    Memory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        namespace:
+          type: string
+        content:
+          type: string
+        content_hash:
+          type: string
+          description: SHA-256 hash for deduplication
+        metadata:
+          type: object
+        ttl_seconds:
+          type: integer
+          description: TTL in seconds
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SearchResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        namespace:
+          type: string
+        score:
+          type: number
+          description: Hybrid search score (0.0-1.0)
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    Filter:
+      type: object
+      properties:
+        since:
+          type: string
+          format: date-time
+          description: Only memories created after this time
+        until:
+          type: string
+          format: date-time
+          description: Only memories created before this time
+        tags:
+          type: array
+          items:
+            type: string
+          description: Match any tag in metadata.tags
+        source:
+          type: string
+          description: Match metadata.source
+
+    Stats:
+      type: object
+      properties:
+        total_memories:
+          type: integer
+        by_namespace:
+          type: object
+          additionalProperties:
+            type: integer
+        recent_24h:
+          type: integer
+        expiring_24h:
+          type: integer
+        oldest_memory:
+          type: string
+          format: date-time
+        newest_memory:
+          type: string
+          format: date-time
+        top_tags:
+          type: array
+          items:
+            type: string
+        embedding_model:
+          type: string
+        embed_dimensions:
+          type: integer
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: string
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: string

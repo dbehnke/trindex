@@ -2,6 +2,8 @@ package memory
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -14,14 +16,12 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
-// Store handles memory CRUD operations
 type Store struct {
 	db    *db.DB
 	embed *embed.Client
 	cfg   *config.Config
 }
 
-// NewStore creates a new memory store
 func NewStore(database *db.DB, embedClient *embed.Client, cfg *config.Config) *Store {
 	return &Store{
 		db:    database,
@@ -30,42 +30,61 @@ func NewStore(database *db.DB, embedClient *embed.Client, cfg *config.Config) *S
 	}
 }
 
-// Create stores a new memory with embedding
 func (s *Store) Create(ctx context.Context, content, namespace string, metadata map[string]interface{}) (*Memory, error) {
-	// Generate embedding
-	embedding, err := s.embed.Embed(content)
+	return s.CreateWithParams(ctx, CreateParams{
+		Content:   content,
+		Namespace: namespace,
+		Metadata:  metadata,
+	})
+}
+
+func (s *Store) CreateWithParams(ctx context.Context, params CreateParams) (*Memory, error) {
+	if params.Namespace == "" {
+		params.Namespace = "default"
+	}
+	if params.Metadata == nil {
+		params.Metadata = make(map[string]interface{})
+	}
+
+	contentHash := computeContentHash(params.Content)
+
+	if existing, err := s.findByContentHash(ctx, params.Namespace, contentHash); err == nil && existing != nil {
+		return existing, nil
+	}
+
+	embedding, err := s.embed.Embed(params.Content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate embedding: %w", err)
 	}
 
-	// Ensure namespace is set
-	if namespace == "" {
-		namespace = "default"
-	}
-
-	// Ensure metadata is not nil
-	if metadata == nil {
-		metadata = make(map[string]interface{})
+	now := time.Now()
+	var expiresAt *time.Time
+	if params.TTLSeconds > 0 {
+		exp := now.Add(time.Duration(params.TTLSeconds) * time.Second)
+		expiresAt = &exp
 	}
 
 	memory := &Memory{
-		ID:        uuid.New(),
-		Namespace: namespace,
-		Content:   content,
-		Embedding: pgvector.NewVector(embedding),
-		Metadata:  metadata,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          uuid.New(),
+		Namespace:   params.Namespace,
+		Content:     params.Content,
+		ContentHash: contentHash,
+		Embedding:   pgvector.NewVector(embedding),
+		Metadata:    params.Metadata,
+		TTLSeconds:  params.TTLSeconds,
+		ExpiresAt:   expiresAt,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	query := `
-		INSERT INTO memories (id, namespace, content, embedding, metadata, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO memories (id, namespace, content, content_hash, embedding, metadata, ttl_seconds, expires_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 
 	_, err = s.db.Pool().Exec(ctx, query,
-		memory.ID, memory.Namespace, memory.Content, memory.Embedding,
-		memory.Metadata, memory.CreatedAt, memory.UpdatedAt,
+		memory.ID, memory.Namespace, memory.Content, memory.ContentHash, memory.Embedding,
+		memory.Metadata, memory.TTLSeconds, memory.ExpiresAt, memory.CreatedAt, memory.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert memory: %w", err)
@@ -74,27 +93,65 @@ func (s *Store) Create(ctx context.Context, content, namespace string, metadata 
 	return memory, nil
 }
 
-// GetByID retrieves a single memory by ID
-func (s *Store) GetByID(ctx context.Context, id uuid.UUID) (*Memory, error) {
+func computeContentHash(content string) string {
+	hash := sha256.Sum256([]byte(content))
+	return hex.EncodeToString(hash[:])
+}
+
+func (s *Store) findByContentHash(ctx context.Context, namespace, contentHash string) (*Memory, error) {
 	query := `
-		SELECT id, namespace, content, metadata, created_at, updated_at 
-		FROM memories 
-		WHERE id = $1
+		SELECT id, namespace, content, content_hash, metadata, ttl_seconds, expires_at, created_at, updated_at
+		FROM memories
+		WHERE namespace = $1 AND content_hash = $2
 	`
 
 	var m Memory
-	err := s.db.Pool().QueryRow(ctx, query, id).Scan(
-		&m.ID, &m.Namespace, &m.Content,
-		&m.Metadata, &m.CreatedAt, &m.UpdatedAt,
+	var expiresAt *time.Time
+	var ttlSeconds *int32
+	err := s.db.Pool().QueryRow(ctx, query, namespace, contentHash).Scan(
+		&m.ID, &m.Namespace, &m.Content, &m.ContentHash,
+		&m.Metadata, &ttlSeconds, &expiresAt, &m.CreatedAt, &m.UpdatedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("memory not found: %w", err)
+		return nil, err
+	}
+	m.ExpiresAt = expiresAt
+	if ttlSeconds != nil {
+		m.TTLSeconds = *ttlSeconds
+	}
+
+	if m.ExpiresAt != nil && m.ExpiresAt.Before(time.Now()) {
+		return nil, nil
 	}
 
 	return &m, nil
 }
 
-// DeleteByID deletes a single memory by ID
+func (s *Store) GetByID(ctx context.Context, id uuid.UUID) (*Memory, error) {
+	query := `
+		SELECT id, namespace, content, content_hash, metadata, ttl_seconds, expires_at, created_at, updated_at
+		FROM memories
+		WHERE id = $1
+	`
+
+	var m Memory
+	var expiresAt *time.Time
+	var ttlSeconds *int32
+	err := s.db.Pool().QueryRow(ctx, query, id).Scan(
+		&m.ID, &m.Namespace, &m.Content, &m.ContentHash,
+		&m.Metadata, &ttlSeconds, &expiresAt, &m.CreatedAt, &m.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("memory not found: %w", err)
+	}
+	m.ExpiresAt = expiresAt
+	if ttlSeconds != nil {
+		m.TTLSeconds = *ttlSeconds
+	}
+
+	return &m, nil
+}
+
 func (s *Store) DeleteByID(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM memories WHERE id = $1`
 	result, err := s.db.Pool().Exec(ctx, query, id)
@@ -109,7 +166,6 @@ func (s *Store) DeleteByID(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// DeleteByNamespace deletes memories by namespace with optional filter
 func (s *Store) DeleteByNamespace(ctx context.Context, namespace string, filter ForgetFilter) (int64, error) {
 	query := `DELETE FROM memories WHERE namespace = $1`
 	args := []interface{}{namespace}
@@ -138,7 +194,16 @@ func (s *Store) DeleteByNamespace(ctx context.Context, namespace string, filter 
 	return result.RowsAffected(), nil
 }
 
-// List retrieves memories without semantic search
+func (s *Store) DeleteExpired(ctx context.Context) (int64, error) {
+	query := `DELETE FROM memories WHERE expires_at IS NOT NULL AND expires_at < NOW()`
+	result, err := s.db.Pool().Exec(ctx, query)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete expired memories: %w", err)
+	}
+
+	return result.RowsAffected(), nil
+}
+
 func (s *Store) List(ctx context.Context, params ListParams) ([]Memory, error) {
 	if params.Limit <= 0 {
 		params.Limit = 20
@@ -150,7 +215,7 @@ func (s *Store) List(ctx context.Context, params ListParams) ([]Memory, error) {
 		params.Order = "desc"
 	}
 
-	query := `SELECT id, namespace, content, metadata, created_at, updated_at FROM memories`
+	query := `SELECT id, namespace, content, content_hash, metadata, ttl_seconds, expires_at, created_at, updated_at FROM memories`
 	args := []interface{}{}
 	argIdx := 1
 
@@ -177,10 +242,16 @@ func scanMemories(rows pgx.Rows) ([]Memory, error) {
 	var memories []Memory
 	for rows.Next() {
 		var m Memory
-		err := rows.Scan(&m.ID, &m.Namespace, &m.Content,
-			&m.Metadata, &m.CreatedAt, &m.UpdatedAt)
+		var expiresAt *time.Time
+		var ttlSeconds *int32
+		err := rows.Scan(&m.ID, &m.Namespace, &m.Content, &m.ContentHash,
+			&m.Metadata, &ttlSeconds, &expiresAt, &m.CreatedAt, &m.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan memory: %w", err)
+		}
+		m.ExpiresAt = expiresAt
+		if ttlSeconds != nil {
+			m.TTLSeconds = *ttlSeconds
 		}
 		memories = append(memories, m)
 	}

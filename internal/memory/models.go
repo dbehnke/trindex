@@ -7,15 +7,17 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
-// Memory represents a stored memory
 type Memory struct {
-	ID        uuid.UUID              `db:"id" json:"id"`
-	Namespace string                 `db:"namespace" json:"namespace"`
-	Content   string                 `db:"content" json:"content"`
-	Embedding pgvector.Vector        `db:"embedding" json:"-"`
-	Metadata  map[string]interface{} `db:"metadata" json:"metadata"`
-	CreatedAt time.Time              `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time              `db:"updated_at" json:"updated_at"`
+	ID          uuid.UUID              `db:"id" json:"id"`
+	Namespace   string                 `db:"namespace" json:"namespace"`
+	Content     string                 `db:"content" json:"content"`
+	ContentHash string                 `db:"content_hash" json:"content_hash,omitempty"`
+	Embedding   pgvector.Vector        `db:"embedding" json:"-"`
+	Metadata    map[string]interface{} `db:"metadata" json:"metadata"`
+	TTLSeconds  int32                  `db:"ttl_seconds" json:"ttl_seconds,omitempty"`
+	ExpiresAt   *time.Time             `db:"expires_at" json:"expires_at,omitempty"`
+	CreatedAt   time.Time              `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time              `db:"updated_at" json:"updated_at"`
 }
 
 // RecallResult represents a memory retrieved by search
@@ -30,6 +32,15 @@ type Filter struct {
 	Until  *time.Time
 	Tags   []string
 	Source string
+}
+
+type CreateParams struct {
+	Content            string
+	Namespace          string
+	Metadata           map[string]interface{}
+	SkipIfDuplicate    bool
+	DuplicateThreshold float64
+	TTLSeconds         int32
 }
 
 // RecallParams represents parameters for recall operation

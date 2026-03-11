@@ -7,30 +7,27 @@ import (
 
 // Migrate runs database schema migrations
 func (db *DB) Migrate(ctx context.Context) error {
-	// Enable required extensions
 	if err := db.enableExtensions(ctx); err != nil {
 		return fmt.Errorf("failed to enable extensions: %w", err)
 	}
-	// Create auth tables first (referenced by audit logs)
 	if err := db.createAPIKeysTable(ctx); err != nil {
 		return fmt.Errorf("failed to create api_keys table: %w", err)
 	}
-
 	if err := db.createAuditLogsTable(ctx); err != nil {
 		return fmt.Errorf("failed to create audit_logs table: %w", err)
 	}
-
-	// Create memories table
 	if err := db.createMemoriesTable(ctx); err != nil {
 		return fmt.Errorf("failed to create memories table: %w", err)
 	}
-
-	// Create indexes
+	if err := db.migrateMemoriesV2(ctx); err != nil {
+		return fmt.Errorf("failed to migrate memories v2: %w", err)
+	}
 	if err := db.createIndexes(ctx); err != nil {
 		return fmt.Errorf("failed to create indexes: %w", err)
 	}
-
-	// Create updated_at trigger
+	if err := db.createMemoriesV2Indexes(ctx); err != nil {
+		return fmt.Errorf("failed to create memories v2 indexes: %w", err)
+	}
 	if err := db.createUpdatedAtTrigger(ctx); err != nil {
 		return fmt.Errorf("failed to create trigger: %w", err)
 	}
@@ -136,7 +133,6 @@ CREATE INDEX IF NOT EXISTS memories_embedding_hnsw_idx
 }
 
 func (db *DB) createUpdatedAtTrigger(ctx context.Context) error {
-	// Create function
 	_, err := db.pool.Exec(ctx, `
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
@@ -146,19 +142,55 @@ $$ LANGUAGE plpgsql`)
 		return fmt.Errorf("failed to create function: %w", err)
 	}
 
-	// Drop if exists first
 	_, err = db.pool.Exec(ctx, `DROP TRIGGER IF EXISTS memories_updated_at ON memories;`)
 	if err != nil {
 		return fmt.Errorf("failed to drop existing trigger: %w", err)
 	}
 
-	// Create trigger
 	_, err = db.pool.Exec(ctx, `
 CREATE TRIGGER memories_updated_at
     BEFORE UPDATE ON memories
     FOR EACH ROW EXECUTE FUNCTION update_updated_at()`)
 	if err != nil {
 		return fmt.Errorf("failed to create trigger: %w", err)
+	}
+
+	return nil
+}
+
+func (db *DB) migrateMemoriesV2(ctx context.Context) error {
+	queries := []string{
+		`ALTER TABLE memories ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)`,
+		`ALTER TABLE memories ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`,
+		`ALTER TABLE memories ADD COLUMN IF NOT EXISTS ttl_seconds INTEGER`,
+	}
+
+	for _, q := range queries {
+		if _, err := db.pool.Exec(ctx, q); err != nil {
+			return fmt.Errorf("failed to execute %q: %w", q, err)
+		}
+	}
+
+	return nil
+}
+
+func (db *DB) createMemoriesV2Indexes(ctx context.Context) error {
+	indexes := []string{
+		`CREATE UNIQUE INDEX IF NOT EXISTS memories_content_hash_unique_idx
+			ON memories (namespace, content_hash)
+			WHERE content_hash IS NOT NULL`,
+		`CREATE INDEX IF NOT EXISTS memories_expires_at_idx
+			ON memories (expires_at)
+			WHERE expires_at IS NOT NULL`,
+		`CREATE INDEX IF NOT EXISTS memories_ttl_seconds_idx
+			ON memories (ttl_seconds)
+			WHERE ttl_seconds IS NOT NULL`,
+	}
+
+	for _, idx := range indexes {
+		if _, err := db.pool.Exec(ctx, idx); err != nil {
+			return fmt.Errorf("failed to create index: %w", err)
+		}
 	}
 
 	return nil

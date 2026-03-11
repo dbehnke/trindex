@@ -18,6 +18,7 @@ import (
 	"github.com/dbehnke/trindex/internal/db"
 	embedclient "github.com/dbehnke/trindex/internal/embed"
 	"github.com/dbehnke/trindex/internal/memory"
+	"github.com/dbehnke/trindex/internal/observability"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/google/uuid"
@@ -70,17 +71,12 @@ func (s *Server) setupRouter() {
 		MaxAge:           300,
 	}))
 
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
-			next.ServeHTTP(w, r)
-			slog.Debug("http request", "method", r.Method, "path", r.URL.Path, "duration", time.Since(start))
-		})
-	})
-
+	r.Use(observability.RequestIDMiddleware)
+	r.Use(observability.LoggingMiddleware)
 	r.Use(s.securityHeadersMiddleware)
 
 	r.Get("/health", s.handleHealth)
+	r.Get("/metrics", observability.MetricsHandler().ServeHTTP)
 
 	r.Route("/api", func(r chi.Router) {
 		r.Use(s.apiKeyMiddleware)
